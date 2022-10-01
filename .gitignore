@@ -1,5 +1,5 @@
-*.js
-*.js.map
+# *.js
+# *.js.map
 !/docs/gl-matrix.js
 !/docs/favicon.ico
 !/docs/shaders/
