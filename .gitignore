@@ -1,6 +1,5 @@
 *.js
 *.js.map
-/public/assets
 !/public/gl-matrix.js
 !/public/favicon.ico
 !/public/shaders/
