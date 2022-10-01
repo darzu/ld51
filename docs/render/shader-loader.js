@@ -2,7 +2,7 @@ import { EM } from "../entity-manager.js";
 import { onInit } from "../init.js";
 import { assert } from "../test.js";
 import { getText } from "../webget.js";
-const DEFAULT_SHADER_PATH = "/shaders/";
+const DEFAULT_SHADER_PATH = "shaders/";
 export const ShaderPaths = [
     "std-mesh",
     "std-ocean",
