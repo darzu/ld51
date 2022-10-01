@@ -1,7 +1,7 @@
 *.js
 *.js.map
-!/public/gl-matrix.js
-!/public/favicon.ico
-!/public/shaders/
+!/docs/gl-matrix.js
+!/docs/favicon.ico
+!/docs/shaders/
 .DS_Store
-!docs/**/*
+# !/docs/**/*
