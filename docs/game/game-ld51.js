@@ -163,6 +163,48 @@ export async function initLD51Game(em, hosting) {
         builder.depth = 0.2;
         appendTimberFloorPlank(builder, ceilLength, ceilSegCount);
     }
+    // WALLS
+    // TODO(@darzu): keep in sync with rib path
+    const wallLength = floorLength;
+    const wallSegCount = 8;
+    // for (let i = 0; i < 6; i++) {
+    // mat4.identity(builder.cursor);
+    // mat4.translate(builder.cursor, builder.cursor, [0, 1, 0]);
+    builder.width = 0.45;
+    builder.depth = 0.2;
+    for (let ccwi = 0; ccwi < 2; ccwi++) {
+        const ccw = ccwi === 0;
+        const ccwf = ccw ? -1 : 1;
+        let xFactor = 0.05;
+        const cursor2 = mat4.create();
+        mat4.rotateX(cursor2, cursor2, Math.PI * 0.4 * -ccwf);
+        mat4.copy(builder.cursor, cursor2);
+        mat4.translate(builder.cursor, builder.cursor, [0, 0, ribDepth]);
+        appendTimberWallPlank(builder, wallLength, wallSegCount);
+        mat4.copy(builder.cursor, cursor2);
+        mat4.translate(builder.cursor, builder.cursor, [0, 1, 0]);
+        // mat4.rotateX(builder.cursor, builder.cursor, Math.PI * xFactor * ccwf);
+        mat4.translate(builder.cursor, builder.cursor, [0, 0, ribDepth * 1]);
+        appendTimberWallPlank(builder, wallLength, wallSegCount);
+        for (let i = 0; i < numRibSegs; i++) {
+            mat4.translate(cursor2, cursor2, [0, 2, 0]);
+            mat4.rotateX(cursor2, cursor2, Math.PI * xFactor * ccwf);
+            // plank 1
+            mat4.copy(builder.cursor, cursor2);
+            mat4.translate(builder.cursor, builder.cursor, [0, 0, ribDepth * -ccwf]);
+            appendTimberWallPlank(builder, wallLength, wallSegCount);
+            // plank 2
+            mat4.copy(builder.cursor, cursor2);
+            mat4.translate(builder.cursor, builder.cursor, [0, 1, 0]);
+            mat4.rotateX(builder.cursor, builder.cursor, Math.PI * xFactor * 1.0 * ccwf);
+            mat4.translate(builder.cursor, builder.cursor, [0, 0, ribDepth * -ccwf]);
+            appendTimberWallPlank(builder, wallLength, wallSegCount);
+            mat4.rotateX(cursor2, cursor2, Math.PI * xFactor * ccwf);
+            xFactor = xFactor - 0.005;
+        }
+        mat4.translate(cursor2, cursor2, [0, 2, 0]);
+    }
+    // }
     _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
     const timberState = getBoardsFromMesh(_timberMesh);
     unshareProvokingForWood(_timberMesh, timberState);
@@ -290,6 +332,25 @@ export async function initLD51Game(em, hosting) {
     sandboxSystems.push("runLD51Timber");
     startPirates();
 }
+export function appendTimberWallPlank(b, length, numSegs) {
+    const firstQuadIdx = b.mesh.quad.length;
+    // mat4.rotateY(b.cursor, b.cursor, Math.PI * 0.5);
+    // mat4.rotateX(b.cursor, b.cursor, Math.PI * 0.5);
+    mat4.rotateZ(b.cursor, b.cursor, Math.PI * 1.5);
+    b.addLoopVerts();
+    b.addEndQuad(true);
+    const segLen = length / numSegs;
+    for (let i = 0; i < numSegs; i++) {
+        mat4.translate(b.cursor, b.cursor, [0, segLen, 0]);
+        b.addLoopVerts();
+        b.addSideQuads();
+    }
+    b.addEndQuad(false);
+    for (let qi = firstQuadIdx; qi < b.mesh.quad.length; qi++)
+        b.mesh.colors.push(vec3.clone(BLACK));
+    // console.dir(b.mesh);
+    return b.mesh;
+}
 export function appendTimberFloorPlank(b, length, numSegs) {
     const firstQuadIdx = b.mesh.quad.length;
     mat4.rotateY(b.cursor, b.cursor, Math.PI * 0.5);
@@ -308,15 +369,15 @@ export function appendTimberFloorPlank(b, length, numSegs) {
     // console.dir(b.mesh);
     return b.mesh;
 }
+const numRibSegs = 8;
 export function appendTimberRib(b, ccw) {
     const firstQuadIdx = b.mesh.quad.length;
     const ccwf = ccw ? -1 : 1;
     mat4.rotateX(b.cursor, b.cursor, Math.PI * 0.4 * -ccwf);
     b.addLoopVerts();
     b.addEndQuad(true);
-    const numSegs = 8;
     let xFactor = 0.05;
-    for (let i = 0; i < numSegs; i++) {
+    for (let i = 0; i < numRibSegs; i++) {
         mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
         mat4.rotateX(b.cursor, b.cursor, Math.PI * xFactor * ccwf);
         b.addLoopVerts();
