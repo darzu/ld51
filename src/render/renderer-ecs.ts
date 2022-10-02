@@ -541,10 +541,23 @@ async function chooseAndInitRenderer(
   // TODO(@darzu): re-enable WebGL
   // if (!rendererInit)
   //   rendererInit = attachToCanvasWebgl(canvas, MAX_MESHES, MAX_VERTICES);
-  if (!renderer) throw new Error("Unable to create webgl or webgpu renderer");
+  if (!renderer) {
+    displayWebGPUError();
+    throw new Error("Unable to create webgl or webgpu renderer");
+  }
   if (VERBOSE_LOG) console.log(`Renderer: ${usingWebGPU ? "webGPU" : "webGL"}`);
 
   // add to ECS
   // TODO(@darzu): this is a little wierd to do this in an async callback
   em.addSingletonComponent(RendererDef, renderer, usingWebGPU, []);
+}
+
+export function displayWebGPUError() {
+  const style = `font-size: 48px;
+      color: green;
+      margin: 24px;
+      max-width: 600px;`;
+  document.getElementsByTagName(
+    "body"
+  )[0].innerHTML = `<div style="${style}">This page requires WebGPU which isn't yet supported in your browser!<br>Or something else went wrong that was my fault.<br><br>U can try Chrome >106.<br><br>🙂</div>`;
 }
