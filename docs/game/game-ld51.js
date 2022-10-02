@@ -477,7 +477,7 @@ export async function initLD51Game(em, hosting) {
             const colRightMid = aabbCenter(vec3.create(), colRightWall.collider.aabb);
             const colFrontMid = aabbCenter(vec3.create(), colFrontWall.collider.aabb);
             const colBackMid = aabbCenter(vec3.create(), colBackWall.collider.aabb);
-            em.registerSystem([BulletConstructDef, LinearVelocityDef, GravityDef], [PhysicsResultsDef], (es, res) => {
+            em.registerSystem([BulletConstructDef, LinearVelocityDef, GravityDef, WorldFrameDef], [PhysicsResultsDef], (es, res) => {
                 for (let b of es) {
                     if (b.bulletConstruct.team !== 2)
                         continue;
@@ -500,9 +500,10 @@ export async function initLD51Game(em, hosting) {
                             for (let w of walls) {
                                 assert(w);
                                 if (w.id === targetSide.id || w.id === targetFrontBack.id) {
-                                    console.log("HIT FAR WALL!");
                                     vec3.zero(b.linearVelocity);
                                     vec3.zero(b.gravity);
+                                    em.ensureComponentOn(b, DeletedDef);
+                                    spawnGoodBall(b.world.position);
                                 }
                             }
                         }
@@ -511,6 +512,28 @@ export async function initLD51Game(em, hosting) {
             }, "bulletBounce");
             sandboxSystems.push("bulletBounce");
         }
+        const GoodBallDef = EM.defineComponent("goodBall", () => true);
+        function spawnGoodBall(pos) {
+            const ball = em.newEntity();
+            em.ensureComponentOn(ball, RenderableConstructDef, res.assets.ball.proto);
+            em.ensureComponentOn(ball, ColorDef, vec3.clone(ENDESGA16.orange));
+            em.ensureComponentOn(ball, PositionDef, vec3.clone(pos));
+            em.ensureComponentOn(ball, GoodBallDef);
+            em.ensureComponentOn(ball, LinearVelocityDef);
+            em.ensureComponentOn(ball, GravityDef, [0, -3, 0]);
+        }
+        em.registerSystem([GoodBallDef, PositionDef, GravityDef, LinearVelocityDef], [], (es, res) => {
+            // TODO(@darzu):
+            for (let ball of es) {
+                if (ball.position[1] <= realFloorHeight + 1) {
+                    ball.position[1] = realFloorHeight + 1;
+                    vec3.zero(ball.linearVelocity);
+                    vec3.zero(ball.gravity);
+                    em.removeComponent(ball.id, GravityDef);
+                }
+            }
+        }, "fallingGoodBalls");
+        sandboxSystems.push("fallingGoodBalls");
         // TODO(@darzu): GHOST MODE
         const DBG_PLAYER = false;
         if (DBG_PLAYER) {

@@ -636,7 +636,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       );
 
       em.registerSystem(
-        [BulletConstructDef, LinearVelocityDef, GravityDef],
+        [BulletConstructDef, LinearVelocityDef, GravityDef, WorldFrameDef],
         [PhysicsResultsDef],
         (es, res) => {
           for (let b of es) {
@@ -663,9 +663,10 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
                 for (let w of walls) {
                   assert(w);
                   if (w.id === targetSide.id || w.id === targetFrontBack.id) {
-                    console.log("HIT FAR WALL!");
                     vec3.zero(b.linearVelocity);
                     vec3.zero(b.gravity);
+                    em.ensureComponentOn(b, DeletedDef);
+                    spawnGoodBall(b.world.position);
                   }
                 }
               }
@@ -676,6 +677,35 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       );
       sandboxSystems.push("bulletBounce");
     }
+
+    const GoodBallDef = EM.defineComponent("goodBall", () => true);
+    function spawnGoodBall(pos: vec3) {
+      const ball = em.newEntity();
+      em.ensureComponentOn(ball, RenderableConstructDef, res.assets.ball.proto);
+      em.ensureComponentOn(ball, ColorDef, vec3.clone(ENDESGA16.orange));
+      em.ensureComponentOn(ball, PositionDef, vec3.clone(pos));
+      em.ensureComponentOn(ball, GoodBallDef);
+      em.ensureComponentOn(ball, LinearVelocityDef);
+      em.ensureComponentOn(ball, GravityDef, [0, -3, 0]);
+    }
+
+    em.registerSystem(
+      [GoodBallDef, PositionDef, GravityDef, LinearVelocityDef],
+      [],
+      (es, res) => {
+        // TODO(@darzu):
+        for (let ball of es) {
+          if (ball.position[1] <= realFloorHeight + 1) {
+            ball.position[1] = realFloorHeight + 1;
+            vec3.zero(ball.linearVelocity);
+            vec3.zero(ball.gravity);
+            em.removeComponent(ball.id, GravityDef);
+          }
+        }
+      },
+      "fallingGoodBalls"
+    );
+    sandboxSystems.push("fallingGoodBalls");
 
     // TODO(@darzu): GHOST MODE
     const DBG_PLAYER = false;

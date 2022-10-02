@@ -152,6 +152,8 @@ export async function breakBullet(bullet) {
     // TODO(@darzu): different sound
     music.playChords([3], "minor", 2.0, 5.0, -1);
     for (let pe of getNextBulletPartSet()) {
+        if (!pe)
+            continue;
         vec3.copy(pe.position, bullet.world.position);
         vec3.copy(pe.color, bullet.color);
         const vel = vec3.clone(bullet.linearVelocity);
