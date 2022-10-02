@@ -31,8 +31,9 @@ import { DevConsoleDef } from "../console.js";
 export function createPlayer(em) {
     // console.log("create player!");
     const e = em.newEntity();
-    em.addComponent(e.id, PlayerPropsDef, vec3.fromValues(0, 100, 0));
+    em.ensureComponentOn(e, PlayerPropsDef, vec3.fromValues(0, 100, 0));
     em.addSingletonComponent(LocalPlayerDef, e.id);
+    return e;
 }
 export const PlayerDef = EM.defineComponent("player", () => {
     return {
@@ -78,11 +79,13 @@ export function registerPlayerSystems(em) {
                 em.addComponent(e.id, RotationDef, quat.rotateY(quat.create(), quat.IDENTITY, Math.PI));
             if (!LinearVelocityDef.isOn(e))
                 em.addComponent(e.id, LinearVelocityDef);
+            // console.log("making player!");
             if (!ColorDef.isOn(e))
                 em.addComponent(e.id, ColorDef, [0, 0.2, 0]);
             if (!MotionSmoothingDef.isOn(e))
                 em.addComponent(e.id, MotionSmoothingDef);
             if (!RenderableConstructDef.isOn(e)) {
+                // console.log("creating rend");
                 const m = cloneMesh(res.assets.cube.mesh);
                 scaleMesh3(m, [0.75, 0.75, 0.4]);
                 em.addComponent(e.id, RenderableConstructDef, m);
@@ -106,6 +109,7 @@ export function registerPlayerSystems(em) {
             if (!ColliderDef.isOn(e)) {
                 const collider = em.addComponent(e.id, ColliderDef);
                 collider.shape = "AABB";
+                // collider.solid = false;
                 collider.solid = true;
                 const playerAABB = copyAABB(createAABB(), res.assets.cube.aabb);
                 vec3.add(playerAABB.min, playerAABB.min, [0, -1, 0]);

@@ -1,7 +1,7 @@
 import { InputsDef } from "../inputs.js";
 import { registerInitTransforms } from "../physics/transform.js";
 import { registerEnemyShipSystems } from "./enemy-ship.js";
-import { LocalPlayerDef, registerPlayerSystems, } from "./player.js";
+import { LocalPlayerDef, registerPlayerSystems } from "./player.js";
 import { CameraDef, CameraFollowDef, registerCameraSystems, setCameraFollowPosition, } from "../camera.js";
 import { registerNetSystems } from "../net/net.js";
 import { registerHandleNetworkEvents, registerSendOutboxes, } from "../net/network-event-handler.js";

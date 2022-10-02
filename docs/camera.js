@@ -41,7 +41,8 @@ export const CameraFollowDef = EM.defineComponent("cameraFollow", (priority = 0)
 }));
 export const CAMERA_OFFSETS = {
     thirdPerson: [0, 0, 10],
-    thirdPersonOverShoulder: [2, 2, 8],
+    // thirdPersonOverShoulder: [1, 3, 2],
+    thirdPersonOverShoulder: [2, 2, 4],
     firstPerson: [0, 0, 0],
 };
 export function setCameraFollowPosition(c, mode) {

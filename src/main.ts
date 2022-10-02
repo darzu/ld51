@@ -79,7 +79,9 @@ function callFixedTimestepSystems() {
   EM.callSystem("buildPlayers");
   EM.callSystem("playerFacingDir");
   EM.callSystem("stepPlayers");
-  EM.callSystem("playerLookingForShip");
+  if (GAME === "hyperspace") {
+    EM.callSystem("playerLookingForShip");
+  }
   if (GAME === "rebound") {
     EM.callSystem("sandboxSpawnBoxes");
   }
