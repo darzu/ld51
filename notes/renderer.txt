@@ -1015,6 +1015,9 @@ Shadow maps take 2 by ThinMatrix:
     ideally circular; ideally comparison-filter (?)
   update shadow map region based on camera
 
+  better way to fix shadow shimmer?
+    https://learn.microsoft.com/en-us/windows/win32/dxtecharts/common-techniques-to-improve-shadow-depth-maps#moving-the-light-in-texel-sized-increments
+
 HypeHype and Blender guys talking about line rendering:
   https://twitter.com/hypersomniac_/status/1575776294096490496
   https://twitter.com/SebAaltonen/status/1575778699378675712

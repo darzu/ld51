@@ -9,7 +9,7 @@ import { getText } from "../webget.js";
 import { farthestPointInDir, uintToVec3unorm, vec3Reverse, vec4Reverse, } from "../utils-3d.js";
 import { onInit } from "../init.js";
 import { VERBOSE_LOG } from "../flags.js";
-import { createTimberBuilder, getBoardsFromMesh, unshareProvokingForWood, WoodAssetsDef, } from "../wood.js";
+import { createTimberBuilder, } from "../wood.js";
 // TODO: load these via streaming
 export const BLACK = vec3.fromValues(0, 0, 0);
 export const DARK_GRAY = vec3.fromValues(0.02, 0.02, 0.02);
@@ -87,16 +87,16 @@ const MeshModify = {
     //   woodAssets["ship_fangs"] = woodState;
     //   return m;
     // },
-    timber_rib: (m) => {
-        var _a;
-        // TODO(@darzu): de-duplicate w/ fang ship above
-        m.surfaceIds = m.colors.map((_, i) => i);
-        const woodState = getBoardsFromMesh(m);
-        unshareProvokingForWood(m, woodState);
-        const woodAssets = (_a = EM.getResource(WoodAssetsDef)) !== null && _a !== void 0 ? _a : EM.addSingletonComponent(WoodAssetsDef);
-        woodAssets["timber_rib"] = woodState;
-        return m;
-    },
+    // timber_rib: (m) => {
+    //   // TODO(@darzu): de-duplicate w/ fang ship above
+    //   m.surfaceIds = m.colors.map((_, i) => i);
+    //   const woodState = getBoardsFromMesh(m);
+    //   unshareProvokingForWood(m, woodState);
+    //   const woodAssets: WoodAssets =
+    //     EM.getResource(WoodAssetsDef) ?? EM.addSingletonComponent(WoodAssetsDef);
+    //   woodAssets["timber_rib"] = woodState;
+    //   return m;
+    // },
     cannon: (m) => {
         m.colors = m.colors.map((c) => [0.2, 0.2, 0.2]);
         return m;
@@ -309,31 +309,10 @@ export const CUBE_MESH = {
         BLACK,
     ],
 };
-export const mkTimberRib = () => {
-    const b = createTimberBuilder();
-    b.addLoopVerts();
-    b.addEndQuad(true);
-    const numSegs = 12 * 20;
-    for (let i = 0; i < numSegs; i++) {
-        mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
-        mat4.rotateX(b.cursor, b.cursor, Math.PI * -0.05);
-        b.addLoopVerts();
-        b.addSideQuads();
-        mat4.rotateX(b.cursor, b.cursor, Math.PI * -0.05);
-        mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.003);
-    }
-    mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
-    b.addLoopVerts();
-    b.addSideQuads();
-    b.addEndQuad(false);
-    b.mesh.colors = b.mesh.quad.map((_) => vec3.clone(BLACK));
-    console.dir(b.mesh);
-    return b.mesh;
-};
 export function mkTimberSplinterEnd(loopCursor, splintersCursor) {
     loopCursor = loopCursor !== null && loopCursor !== void 0 ? loopCursor : mat4.create();
     splintersCursor = splintersCursor !== null && splintersCursor !== void 0 ? splintersCursor : mat4.create();
-    const b = createTimberBuilder();
+    const b = createTimberBuilder(0.5, 0.2);
     // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.5); // TODO(@darzu): DBG
     // b.addLoopVerts();
     // mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
@@ -351,9 +330,10 @@ export function mkTimberSplinterEnd(loopCursor, splintersCursor) {
     // console.dir(b.mesh);
     return b.mesh;
 }
-export const mkTimberSplinterFree = (topWidth = 1, botWidth = 1, height = 2) => {
+export const mkTimberSplinterFree = (topWidth, botWidth, height, width, depth) => {
     // TODO(@darzu): IMPL!
-    const b = createTimberBuilder();
+    // const b = createTimberBuilder(.5, .2);
+    const b = createTimberBuilder(width, depth);
     // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.5); // TODO(@darzu): DBG
     // const Wtop = 1 + jitter(0.9);
     // const Wbot = 1 + jitter(0.9);
@@ -361,8 +341,8 @@ export const mkTimberSplinterFree = (topWidth = 1, botWidth = 1, height = 2) => 
     const Wbot = botWidth;
     // const W = 0.75 + jitter(0.25);
     const H = height;
-    const topJags = Math.round(5 * Wtop);
-    const botJags = Math.round(5 * Wbot);
+    const topJags = Math.round(10 * width * Wtop);
+    const botJags = Math.round(10 * width * Wbot);
     mat4.translate(b.cursor, b.cursor, [0, -H * 0.5, 0]);
     mat4.scale(b.cursor, b.cursor, [Wbot, 1, 1]);
     b.addLoopVerts();
@@ -707,7 +687,7 @@ export const LocalMeshes = {
         return m;
     },
     sail: () => SAIL_MESH,
-    timber_rib: mkTimberRib,
+    // timber_rib: mkTimberRib,
     timber_splinter: mkTimberSplinterEnd,
 };
 const AssetLoaderDef = EM.defineComponent("assetLoader", () => {

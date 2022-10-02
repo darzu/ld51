@@ -157,21 +157,21 @@ const MeshModify: Partial<{
 
   //   return m;
   // },
-  timber_rib: (m) => {
-    // TODO(@darzu): de-duplicate w/ fang ship above
-    m.surfaceIds = m.colors.map((_, i) => i);
+  // timber_rib: (m) => {
+  //   // TODO(@darzu): de-duplicate w/ fang ship above
+  //   m.surfaceIds = m.colors.map((_, i) => i);
 
-    const woodState = getBoardsFromMesh(m);
+  //   const woodState = getBoardsFromMesh(m);
 
-    unshareProvokingForWood(m, woodState);
+  //   unshareProvokingForWood(m, woodState);
 
-    const woodAssets: WoodAssets =
-      EM.getResource(WoodAssetsDef) ?? EM.addSingletonComponent(WoodAssetsDef);
+  //   const woodAssets: WoodAssets =
+  //     EM.getResource(WoodAssetsDef) ?? EM.addSingletonComponent(WoodAssetsDef);
 
-    woodAssets["timber_rib"] = woodState;
+  //   woodAssets["timber_rib"] = woodState;
 
-    return m;
-  },
+  //   return m;
+  // },
   cannon: (m) => {
     m.colors = m.colors.map((c) => [0.2, 0.2, 0.2]);
     return m;
@@ -398,36 +398,10 @@ export const CUBE_MESH: RawMesh = {
   ],
 };
 
-export const mkTimberRib: () => RawMesh = () => {
-  const b = createTimberBuilder();
-
-  b.addLoopVerts();
-  b.addEndQuad(true);
-  const numSegs = 12 * 20;
-  for (let i = 0; i < numSegs; i++) {
-    mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
-    mat4.rotateX(b.cursor, b.cursor, Math.PI * -0.05);
-    b.addLoopVerts();
-    b.addSideQuads();
-    mat4.rotateX(b.cursor, b.cursor, Math.PI * -0.05);
-    mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.003);
-  }
-  mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
-  b.addLoopVerts();
-  b.addSideQuads();
-  b.addEndQuad(false);
-
-  b.mesh.colors = b.mesh.quad.map((_) => vec3.clone(BLACK));
-
-  console.dir(b.mesh);
-
-  return b.mesh;
-};
-
 export function mkTimberSplinterEnd(loopCursor?: mat4, splintersCursor?: mat4) {
   loopCursor = loopCursor ?? mat4.create();
   splintersCursor = splintersCursor ?? mat4.create();
-  const b = createTimberBuilder();
+  const b = createTimberBuilder(0.5, 0.2);
 
   // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.5); // TODO(@darzu): DBG
   // b.addLoopVerts();
@@ -453,12 +427,15 @@ export function mkTimberSplinterEnd(loopCursor?: mat4, splintersCursor?: mat4) {
 }
 
 export const mkTimberSplinterFree = (
-  topWidth = 1,
-  botWidth = 1,
-  height = 2
+  topWidth: number,
+  botWidth: number,
+  height: number,
+  width: number,
+  depth: number
 ) => {
   // TODO(@darzu): IMPL!
-  const b = createTimberBuilder();
+  // const b = createTimberBuilder(.5, .2);
+  const b = createTimberBuilder(width, depth);
 
   // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.5); // TODO(@darzu): DBG
 
@@ -469,8 +446,8 @@ export const mkTimberSplinterFree = (
   // const W = 0.75 + jitter(0.25);
   const H = height;
 
-  const topJags = Math.round(5 * Wtop);
-  const botJags = Math.round(5 * Wbot);
+  const topJags = Math.round(10 * width * Wtop);
+  const botJags = Math.round(10 * width * Wbot);
 
   mat4.translate(b.cursor, b.cursor, [0, -H * 0.5, 0]);
   mat4.scale(b.cursor, b.cursor, [Wbot, 1, 1]);
@@ -854,7 +831,7 @@ export const LocalMeshes = {
     return m;
   },
   sail: () => SAIL_MESH,
-  timber_rib: mkTimberRib,
+  // timber_rib: mkTimberRib,
   timber_splinter: mkTimberSplinterEnd,
 } as const;
 

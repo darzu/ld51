@@ -223,7 +223,13 @@ onInit((em: EntityManager) => {
                 // TODO(@darzu): use pool!!
                 const topW = 0.6 + jitter(0.4);
                 const botW = 0.6 + jitter(0.4);
-                const _splinterMesh = mkTimberSplinterFree(topW, botW, 1);
+                const _splinterMesh = mkTimberSplinterFree(
+                  topW,
+                  botW,
+                  1,
+                  seg.width,
+                  seg.depth
+                );
                 const splinterMesh = normalizeMesh(_splinterMesh);
                 const splinter = EM.newEntity();
                 EM.ensureComponentOn(
@@ -257,7 +263,13 @@ onInit((em: EntityManager) => {
               if (h.prev && !h.prev.broken) {
                 // create end caps
                 // TODO(@darzu): use a pool of end caps n stuff
-                const endBot = createSplinterEnd(seg, mesh, false);
+                const endBot = createSplinterEnd(
+                  seg,
+                  mesh,
+                  false,
+                  seg.width,
+                  seg.depth
+                );
                 em.ensureComponentOn(endBot, PhysicsParentDef, w.id);
                 vec3.copy(endBot.color, w.color);
                 em.whenEntityHas(endBot, RenderDataStdDef).then((end2) => {
@@ -269,7 +281,13 @@ onInit((em: EntityManager) => {
               }
 
               if (h.next && !h.next.broken) {
-                const endTop = createSplinterEnd(seg, mesh, true);
+                const endTop = createSplinterEnd(
+                  seg,
+                  mesh,
+                  true,
+                  seg.width,
+                  seg.depth
+                );
                 em.ensureComponentOn(endTop, PhysicsParentDef, w.id);
                 vec3.copy(endTop.color, w.color);
                 em.whenEntityHas(endTop, RenderDataStdDef).then((end2) => {
@@ -334,7 +352,13 @@ function getSegmentRotation(seg: BoardSeg, top: boolean) {
   return rot;
 }
 
-function createSplinterEnd(seg: BoardSeg, boardMesh: Mesh, top: boolean) {
+function createSplinterEnd(
+  seg: BoardSeg,
+  boardMesh: Mesh,
+  top: boolean,
+  W: number,
+  D: number
+) {
   const pos = vec3.copy(tempVec3(), seg.midLine.ray.org);
   if (top) {
     getLineEnd(pos, seg.midLine);
@@ -348,7 +372,7 @@ function createSplinterEnd(seg: BoardSeg, boardMesh: Mesh, top: boolean) {
   const cursor = mat4.fromRotationTranslation(mat4.create(), rot, pos);
   let _splinterMesh: RawMesh;
   {
-    const b = createTimberBuilder();
+    const b = createTimberBuilder(W, D);
 
     b.setCursor(cursor);
     b.addLoopVerts();
@@ -410,11 +434,37 @@ function createSplinterEnd(seg: BoardSeg, boardMesh: Mesh, top: boolean) {
   return splinter;
 }
 
-export function createTimberBuilder() {
+export function mkTimberRib(W: number, D: number) {
+  const b = createTimberBuilder(W, D);
+
+  b.addLoopVerts();
+  b.addEndQuad(true);
+  const numSegs = 12 * 20;
+  for (let i = 0; i < numSegs; i++) {
+    mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
+    mat4.rotateX(b.cursor, b.cursor, Math.PI * -0.05);
+    b.addLoopVerts();
+    b.addSideQuads();
+    mat4.rotateX(b.cursor, b.cursor, Math.PI * -0.05);
+    mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.003);
+  }
+  mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
+  b.addLoopVerts();
+  b.addSideQuads();
+  b.addEndQuad(false);
+
+  b.mesh.colors = b.mesh.quad.map((_) => vec3.clone(BLACK));
+
+  console.dir(b.mesh);
+
+  return b.mesh;
+}
+
+export function createTimberBuilder(W: number, D: number) {
   // TODO(@darzu): have a system for building wood?
 
-  const W = 0.5; // width
-  const D = 0.2; // depth
+  // const W = 0.5; // width
+  // const D = 0.2; // depth
 
   let mesh: RawMesh = {
     dbgName: "timber_rib",
@@ -577,6 +627,8 @@ interface BoardSeg {
   localAABB: AABB;
   midLine: Line;
   areaNorms: vec3[];
+  width: number;
+  depth: number;
   vertLastLoopIdxs: vec4; // TODO(@darzu): always 4?
   vertNextLoopIdxs: vec4; // TODO(@darzu): always 4?
   quadSideIdxs: number[]; // TODO(@darzu): alway 4?
@@ -744,6 +796,10 @@ export function getBoardsFromMesh(m: RawMesh): WoodState {
         // console.log(`vec3.len(areaNorm): ${vec3.len(areaNorm)}`);
         return areaNorm;
       });
+      const len1 = vec3.dist(m.pos[lastLoop[1]], m.pos[lastLoop[0]]);
+      const len2 = vec3.dist(m.pos[lastLoop[3]], m.pos[lastLoop[0]]);
+      const width = Math.max(len1, len2) * 0.5;
+      const depth = Math.min(len1, len2) * 0.5;
       let seg: BoardSeg;
 
       // are we at an end of the board?
@@ -761,6 +817,8 @@ export function getBoardsFromMesh(m: RawMesh): WoodState {
             localAABB: aabb,
             midLine: mid,
             areaNorms,
+            width,
+            depth,
             vertLastLoopIdxs: lastLoop,
             vertNextLoopIdxs: nextLoop,
             quadSideIdxs: sideQuads,
@@ -786,6 +844,8 @@ export function getBoardsFromMesh(m: RawMesh): WoodState {
           localAABB: aabb,
           midLine: mid,
           areaNorms,
+          width,
+          depth,
           vertLastLoopIdxs: lastLoop,
           vertNextLoopIdxs: nextLoop,
           quadSideIdxs: segQis,

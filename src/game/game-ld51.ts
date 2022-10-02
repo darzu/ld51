@@ -55,6 +55,7 @@ import { randomizeMeshColors, drawLine2 } from "../utils-game.js";
 import {
   createWoodHealth,
   getBoardsFromMesh,
+  mkTimberRib,
   SplinterParticleDef,
   unshareProvokingForWood,
   WoodAssetsDef,
@@ -62,12 +63,7 @@ import {
   WoodStateDef,
 } from "../wood.js";
 import { yawpitchToQuat } from "../yawpitch.js";
-import {
-  AssetsDef,
-  mkTimberRib,
-  mkTimberSplinterEnd,
-  mkTimberSplinterFree,
-} from "./assets.js";
+import { AssetsDef } from "./assets.js";
 import { fireBullet } from "./bullet.js";
 import { GlobalCursor3dDef } from "./cursor.js";
 import { createGhost } from "./game-sandbox.js";
@@ -181,7 +177,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   // });
 
   const timber = em.newEntity();
-  const _timberMesh = mkTimberRib();
+  const _timberMesh = mkTimberRib(0.5, 0.4);
   _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
   const timberState = getBoardsFromMesh(_timberMesh);
   unshareProvokingForWood(_timberMesh, timberState);

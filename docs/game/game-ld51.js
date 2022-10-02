@@ -22,8 +22,8 @@ import { RendererDef, RenderableConstructDef, RenderDataStdDef, } from "../rende
 import { tempMat4 } from "../temp-pool.js";
 import { assert } from "../test.js";
 import { TimeDef } from "../time.js";
-import { createWoodHealth, getBoardsFromMesh, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, } from "../wood.js";
-import { AssetsDef, mkTimberRib, } from "./assets.js";
+import { createWoodHealth, getBoardsFromMesh, mkTimberRib, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, } from "../wood.js";
+import { AssetsDef } from "./assets.js";
 import { fireBullet } from "./bullet.js";
 import { createGhost } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
@@ -112,7 +112,7 @@ export async function initLD51Game(em, hosting) {
     //   halfsize: res.assets.cube.halfsize,
     // });
     const timber = em.newEntity();
-    const _timberMesh = mkTimberRib();
+    const _timberMesh = mkTimberRib(0.5, 0.4);
     _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
     const timberState = getBoardsFromMesh(_timberMesh);
     unshareProvokingForWood(_timberMesh, timberState);
