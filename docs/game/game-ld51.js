@@ -111,8 +111,10 @@ export async function initLD51Game(em, hosting) {
     //   center: res.assets.cube.center,
     //   halfsize: res.assets.cube.halfsize,
     // });
+    // TIMBER
     const timber = em.newEntity();
     const _timberMesh = createEmptyMesh("rib");
+    // RIBS
     const ribWidth = 0.5;
     const ribDepth = 0.4;
     const builder = createTimberBuilder(_timberMesh, ribWidth, ribDepth);
@@ -129,6 +131,7 @@ export async function initLD51Game(em, hosting) {
         mat4.translate(builder.cursor, builder.cursor, [i * ribSpace, 0, 0]);
         appendTimberRib(builder, false);
     }
+    // FLOOR
     const floorPlankCount = 7;
     const floorSpace = 1.24;
     const floorLength = ribSpace * (ribCount - 1) + ribWidth * 2.0;
@@ -143,6 +146,22 @@ export async function initLD51Game(em, hosting) {
         builder.width = 0.6;
         builder.depth = 0.2;
         appendTimberFloorPlank(builder, floorLength, floorSegCount);
+    }
+    // CEILING
+    const ceilPlankCount = 8;
+    const ceilSpace = 1.24;
+    const ceilLength = ribSpace * (ribCount - 1) + ribWidth * 2.0;
+    const ceilSegCount = 12;
+    for (let i = 0; i < ceilPlankCount; i++) {
+        mat4.identity(builder.cursor);
+        mat4.translate(builder.cursor, builder.cursor, [
+            -ribWidth,
+            12,
+            (i - (ceilPlankCount - 1) * 0.5) * ceilSpace + jitter(0.01),
+        ]);
+        builder.width = 0.6;
+        builder.depth = 0.2;
+        appendTimberFloorPlank(builder, ceilLength, ceilSegCount);
     }
     _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
     const timberState = getBoardsFromMesh(_timberMesh);
@@ -295,7 +314,7 @@ export function appendTimberRib(b, ccw) {
     mat4.rotateX(b.cursor, b.cursor, Math.PI * 0.4 * -ccwf);
     b.addLoopVerts();
     b.addEndQuad(true);
-    const numSegs = 7;
+    const numSegs = 8;
     let xFactor = 0.05;
     for (let i = 0; i < numSegs; i++) {
         mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
