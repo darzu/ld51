@@ -248,6 +248,7 @@ function getSegmentRotation(seg, top) {
     quatFromUpForward(rot, endNorm, segNorm);
     return rot;
 }
+// TODO(@darzu): POOL THESE SPLINTER ENDS!
 function createSplinterEnd(seg, boardMesh, top, W, D) {
     const pos = vec3.copy(tempVec3(), seg.midLine.ray.org);
     if (top) {

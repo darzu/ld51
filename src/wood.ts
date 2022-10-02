@@ -366,6 +366,8 @@ function getSegmentRotation(seg: BoardSeg, top: boolean) {
   return rot;
 }
 
+// TODO(@darzu): POOL THESE SPLINTER ENDS!
+
 function createSplinterEnd(
   seg: BoardSeg,
   boardMesh: Mesh,
