@@ -13,7 +13,7 @@ import { AngularVelocityDef, LinearVelocityDef } from "../physics/motion.js";
 import { WorldFrameDef } from "../physics/nonintersection.js";
 import { PhysicsParentDef, PositionDef, RotationDef, ScaleDef, } from "../physics/transform.js";
 import { PointLightDef } from "../render/lights.js";
-import { cloneMesh, getAABBFromMesh, getCenterFromAABB, normalizeMesh, transformMesh, } from "../render/mesh.js";
+import { cloneMesh, getAABBFromMesh, normalizeMesh, transformMesh, } from "../render/mesh.js";
 import { stdRenderPipeline } from "../render/pipelines/std-mesh.js";
 import { outlineRender } from "../render/pipelines/std-outline.js";
 import { postProcess } from "../render/pipelines/std-post.js";
@@ -22,8 +22,8 @@ import { RendererDef, RenderableConstructDef, RenderDataStdDef, } from "../rende
 import { tempMat4 } from "../temp-pool.js";
 import { assert } from "../test.js";
 import { TimeDef } from "../time.js";
-import { createWoodHealth, getBoardsFromMesh, mkTimberRib, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, } from "../wood.js";
-import { AssetsDef } from "./assets.js";
+import { createEmptyMesh, createTimberBuilder, createWoodHealth, getBoardsFromMesh, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, } from "../wood.js";
+import { AssetsDef, BLACK } from "./assets.js";
 import { fireBullet } from "./bullet.js";
 import { createGhost } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
@@ -112,7 +112,20 @@ export async function initLD51Game(em, hosting) {
     //   halfsize: res.assets.cube.halfsize,
     // });
     const timber = em.newEntity();
-    const _timberMesh = mkTimberRib(0.5, 0.4);
+    const _timberMesh = createEmptyMesh("rib");
+    const builder = createTimberBuilder(_timberMesh, 0.5, 0.4);
+    const ribCount = 12;
+    for (let i = 0; i < ribCount; i++) {
+        mat4.identity(builder.cursor);
+        mat4.translate(builder.cursor, builder.cursor, [i * 2, 0, 0]);
+        mkTimberRib(builder, true);
+    }
+    for (let i = 0; i < ribCount; i++) {
+        mat4.identity(builder.cursor);
+        // mat4.scale(builder.cursor, builder.cursor, [1, 1, -1]);
+        mat4.translate(builder.cursor, builder.cursor, [i * 2, 0, 0]);
+        mkTimberRib(builder, false);
+    }
     _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
     const timberState = getBoardsFromMesh(_timberMesh);
     unshareProvokingForWood(_timberMesh, timberState);
@@ -124,11 +137,12 @@ export async function initLD51Game(em, hosting) {
     // const scale = 1 * Math.pow(0.8, ti);
     const scale = 1;
     const timberAABB = getAABBFromMesh(timberMesh);
-    const timberPos = getCenterFromAABB(timberAABB);
+    // const timberPos = getCenterFromAABB(timberAABB);
+    const timberPos = vec3.create();
     // const timberPos = vec3.clone(res.assets.timber_rib.center);
-    vec3.negate(timberPos, timberPos);
-    vec3.scale(timberPos, timberPos, scale);
-    timberPos[1] += 5;
+    // vec3.negate(timberPos, timberPos);
+    // vec3.scale(timberPos, timberPos, scale);
+    timberPos[1] += 7;
     em.ensureComponentOn(timber, PositionDef, timberPos);
     // em.ensureComponentOn(timber, PositionDef, [0, 0, -4]);
     em.ensureComponentOn(timber, RotationDef);
@@ -236,6 +250,32 @@ export async function initLD51Game(em, hosting) {
     }, "runLD51Timber");
     sandboxSystems.push("runLD51Timber");
     startPirates();
+}
+export function mkTimberRib(b, ccw) {
+    const firstQuadIdx = b.mesh.quad.length;
+    const ccwf = ccw ? -1 : 1;
+    mat4.rotateX(b.cursor, b.cursor, Math.PI * 0.4 * -ccwf);
+    b.addLoopVerts();
+    b.addEndQuad(true);
+    const numSegs = 7;
+    let xFactor = 0.05;
+    for (let i = 0; i < numSegs; i++) {
+        mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
+        mat4.rotateX(b.cursor, b.cursor, Math.PI * xFactor * ccwf);
+        b.addLoopVerts();
+        b.addSideQuads();
+        mat4.rotateX(b.cursor, b.cursor, Math.PI * xFactor * ccwf);
+        // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.003);
+        xFactor = xFactor - 0.005;
+    }
+    mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
+    b.addLoopVerts();
+    b.addSideQuads();
+    b.addEndQuad(false);
+    for (let qi = firstQuadIdx; qi < b.mesh.quad.length; qi++)
+        b.mesh.colors.push(vec3.clone(BLACK));
+    // console.dir(b.mesh);
+    return b.mesh;
 }
 const startDelay = 5000;
 export const PiratePlatformDef = EM.defineComponent("piratePlatform", (cannon, tiltPeriod, tiltTimer) => {

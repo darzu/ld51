@@ -372,7 +372,7 @@ function createSplinterEnd(
   const cursor = mat4.fromRotationTranslation(mat4.create(), rot, pos);
   let _splinterMesh: RawMesh;
   {
-    const b = createTimberBuilder(W, D);
+    const b = createTimberBuilder(createEmptyMesh("splinterEnd"), W, D);
 
     b.setCursor(cursor);
     b.addLoopVerts();
@@ -434,38 +434,7 @@ function createSplinterEnd(
   return splinter;
 }
 
-export function mkTimberRib(W: number, D: number) {
-  const b = createTimberBuilder(W, D);
-
-  b.addLoopVerts();
-  b.addEndQuad(true);
-  const numSegs = 12 * 20;
-  for (let i = 0; i < numSegs; i++) {
-    mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
-    mat4.rotateX(b.cursor, b.cursor, Math.PI * -0.05);
-    b.addLoopVerts();
-    b.addSideQuads();
-    mat4.rotateX(b.cursor, b.cursor, Math.PI * -0.05);
-    mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.003);
-  }
-  mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
-  b.addLoopVerts();
-  b.addSideQuads();
-  b.addEndQuad(false);
-
-  b.mesh.colors = b.mesh.quad.map((_) => vec3.clone(BLACK));
-
-  console.dir(b.mesh);
-
-  return b.mesh;
-}
-
-export function createTimberBuilder(W: number, D: number) {
-  // TODO(@darzu): have a system for building wood?
-
-  // const W = 0.5; // width
-  // const D = 0.2; // depth
-
+export function createEmptyMesh(dbgName: string) {
   let mesh: RawMesh = {
     dbgName: "timber_rib",
     pos: [],
@@ -473,6 +442,15 @@ export function createTimberBuilder(W: number, D: number) {
     quad: [],
     colors: [],
   };
+  return mesh;
+}
+
+export type TimberBuilder = ReturnType<typeof createTimberBuilder>;
+export function createTimberBuilder(mesh: RawMesh, W: number, D: number) {
+  // TODO(@darzu): have a system for building wood?
+
+  // const W = 0.5; // width
+  // const D = 0.2; // depth
 
   const cursor: mat4 = mat4.create();
 

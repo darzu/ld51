@@ -38,6 +38,7 @@ import { onInit } from "../init.js";
 import { jitter, mathMap, max, min } from "../math.js";
 import { VERBOSE_LOG } from "../flags.js";
 import {
+  createEmptyMesh,
   createTimberBuilder,
   debugBoardSystem,
   getBoardsFromMesh,
@@ -401,7 +402,7 @@ export const CUBE_MESH: RawMesh = {
 export function mkTimberSplinterEnd(loopCursor?: mat4, splintersCursor?: mat4) {
   loopCursor = loopCursor ?? mat4.create();
   splintersCursor = splintersCursor ?? mat4.create();
-  const b = createTimberBuilder(0.5, 0.2);
+  const b = createTimberBuilder(createEmptyMesh("splinterEnd"), 0.5, 0.2);
 
   // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.5); // TODO(@darzu): DBG
   // b.addLoopVerts();
@@ -435,7 +436,7 @@ export const mkTimberSplinterFree = (
 ) => {
   // TODO(@darzu): IMPL!
   // const b = createTimberBuilder(.5, .2);
-  const b = createTimberBuilder(width, depth);
+  const b = createTimberBuilder(createEmptyMesh("splinter"), width, depth);
 
   // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.5); // TODO(@darzu): DBG
 

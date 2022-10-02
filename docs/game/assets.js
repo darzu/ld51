@@ -9,7 +9,7 @@ import { getText } from "../webget.js";
 import { farthestPointInDir, uintToVec3unorm, vec3Reverse, vec4Reverse, } from "../utils-3d.js";
 import { onInit } from "../init.js";
 import { VERBOSE_LOG } from "../flags.js";
-import { createTimberBuilder, } from "../wood.js";
+import { createEmptyMesh, createTimberBuilder, } from "../wood.js";
 // TODO: load these via streaming
 export const BLACK = vec3.fromValues(0, 0, 0);
 export const DARK_GRAY = vec3.fromValues(0.02, 0.02, 0.02);
@@ -312,7 +312,7 @@ export const CUBE_MESH = {
 export function mkTimberSplinterEnd(loopCursor, splintersCursor) {
     loopCursor = loopCursor !== null && loopCursor !== void 0 ? loopCursor : mat4.create();
     splintersCursor = splintersCursor !== null && splintersCursor !== void 0 ? splintersCursor : mat4.create();
-    const b = createTimberBuilder(0.5, 0.2);
+    const b = createTimberBuilder(createEmptyMesh("splinterEnd"), 0.5, 0.2);
     // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.5); // TODO(@darzu): DBG
     // b.addLoopVerts();
     // mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
@@ -333,7 +333,7 @@ export function mkTimberSplinterEnd(loopCursor, splintersCursor) {
 export const mkTimberSplinterFree = (topWidth, botWidth, height, width, depth) => {
     // TODO(@darzu): IMPL!
     // const b = createTimberBuilder(.5, .2);
-    const b = createTimberBuilder(width, depth);
+    const b = createTimberBuilder(createEmptyMesh("splinter"), width, depth);
     // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.5); // TODO(@darzu): DBG
     // const Wtop = 1 + jitter(0.9);
     // const Wbot = 1 + jitter(0.9);
