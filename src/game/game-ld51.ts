@@ -209,15 +209,16 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   const floorSpace = 1.24;
   const floorLength = ribSpace * (ribCount - 1) + ribWidth * 2.0;
   const floorSegCount = 12;
+  const floorHeight = 3.2;
+  builder.width = 0.6;
+  builder.depth = 0.2;
   for (let i = 0; i < floorPlankCount; i++) {
     mat4.identity(builder.cursor);
     mat4.translate(builder.cursor, builder.cursor, [
       -ribWidth,
-      3,
+      floorHeight - builder.depth,
       (i - (floorPlankCount - 1) * 0.5) * floorSpace + jitter(0.01),
     ]);
-    builder.width = 0.6;
-    builder.depth = 0.2;
     appendTimberFloorPlank(builder, floorLength, floorSegCount);
   }
   // CEILING
@@ -323,51 +324,36 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   });
   const timberHealth = createWoodHealth(timberState);
   em.ensureComponentOn(timber, WoodHealthDef, timberHealth);
-  // randomizeMeshColors(timber);
-  // const board = timberState.boards[0];
-  // const timber2 = await em.whenEntityHas(timber, RenderableDef);
 
-  // const tetra = em.newEntity();
-  // const tetraMesh = cloneMesh(res.assets.tetra.mesh);
-  // em.ensureComponentOn(tetra, RenderableConstructDef, tetraMesh);
-  // em.ensureComponentOn(tetra, ColorDef, [0.1, 0.1, 0.1]);
-  // em.ensureComponentOn(tetra, PositionDef, [0, -3, 0]);
-  // em.ensureComponentOn(tetra, RotationDef);
-  // em.ensureComponentOn(tetra, WorldFrameDef);
-  // em.ensureComponentOn(tetra, ColliderDef, {
-  //   shape: "AABB",
-  //   solid: false,
-  //   aabb: res.assets.tetra.aabb,
-  // });
-
-  // for (let xi = 0; xi < 0; xi += 2) {
-  //   for (let yi = 0; yi < 0; yi += 2) {
-  //     // TODO(@darzu): dbging splinters
-  //     const splinter = em.newEntity();
-  //     // TODO(@darzu): perf? probably don't need to normalize, just use same surface ID and provoking vert for all
-  //     const _splinterMesh =
-  //       // yi < 5 ? mkTimberSplinterEnd() : mkTimberSplinterFree();
-  //       // mkTimberSplinterFree(0.2 + xi * 0.2, 0.2 + yi * 0.2);
-  //       mkTimberSplinterFree(1, 1, 1);
-  //     const splinterMesh = normalizeMesh(_splinterMesh);
-  //     em.ensureComponentOn(splinter, RenderableConstructDef, splinterMesh);
-  //     em.ensureComponentOn(splinter, ColorDef, [
-  //       Math.random(),
-  //       Math.random(),
-  //       Math.random(),
-  //     ]);
-  //     // em.ensureComponentOn(splinter, ColorDef, [0.1, 0.1, 0.1]);
-  //     em.ensureComponentOn(splinter, PositionDef, [xi * 2 + 4, 0, yi * 2]);
-  //     em.ensureComponentOn(splinter, RotationDef);
-  //     em.ensureComponentOn(splinter, WorldFrameDef);
-  //     em.ensureComponentOn(splinter, ColliderDef, {
-  //       shape: "AABB",
-  //       solid: false,
-  //       aabb: res.assets.timber_splinter.aabb,
-  //     });
-  //     // randomizeMeshColors(splinter);
-  //   }
-  // }
+  // CANNONS
+  /*
+  TO BE A GAME, TODO:
+  Player can walk on ship
+  Player can fire cannon
+  Show controls, describe objective
+  PERF: Splinters pool
+  PERF: splinter end pool 
+  Planks can be repaired
+  Can destroy enemies
+  cannon ball can't destroy everything
+  Enemies spawn
+  PERF: pool enemy ships
+  change wood colors
+  */
+  const realFloorHeight = timberPos[1] + floorHeight;
+  const cannon = em.newEntity();
+  em.ensureComponentOn(
+    cannon,
+    RenderableConstructDef,
+    res.assets.ld51_cannon.proto
+  );
+  em.ensureComponentOn(cannon, PositionDef, [0, realFloorHeight + 1, 0]);
+  em.ensureComponentOn(
+    cannon,
+    RotationDef,
+    quat.rotateX(quat.create(), quat.IDENTITY, Math.PI * 0.03)
+  );
+  em.ensureComponentOn(cannon, ColorDef, vec3.clone(ENDESGA16.darkGreen));
 
   const splinterObjId = 7654;
   em.registerSystem(
