@@ -331,6 +331,60 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   }
   // }
 
+  // FRONT AND BACK WALL
+  let _floorWidth = floorWidth;
+  {
+    let wallSegCount = 6;
+    let numRibSegs = 6;
+    let floorWidth = _floorWidth + 4;
+    for (let ccwi = 0; ccwi < 2; ccwi++) {
+      const ccw = ccwi === 0;
+      const ccwf = ccw ? -1 : 1;
+      let xFactor = 0.05;
+
+      const wallOffset: vec3 = [-ribWidth, 0, ribDepth * -ccwf];
+
+      const cursor2 = mat4.create();
+      // mat4.rotateX(cursor2, cursor2, Math.PI * 0.4 * -ccwf);
+      mat4.rotateY(cursor2, cursor2, Math.PI * 0.5);
+      if (ccw) {
+        mat4.translate(cursor2, cursor2, [0, 0, floorLength - ribWidth * 2.0]);
+      }
+      mat4.translate(cursor2, cursor2, [-6, 0, 0]);
+
+      mat4.copy(builder.cursor, cursor2);
+      mat4.translate(builder.cursor, builder.cursor, [0, 1, 0]);
+      // mat4.rotateX(builder.cursor, builder.cursor, Math.PI * xFactor * ccwf);
+      mat4.translate(builder.cursor, builder.cursor, wallOffset);
+      appendTimberWallPlank(builder, floorWidth, wallSegCount, -1);
+
+      for (let i = 0; i < numRibSegs; i++) {
+        mat4.translate(cursor2, cursor2, [0, 2, 0]);
+        // mat4.rotateX(cursor2, cursor2, Math.PI * xFactor * ccwf);
+
+        // plank 1
+        mat4.copy(builder.cursor, cursor2);
+        mat4.translate(builder.cursor, builder.cursor, wallOffset);
+        appendTimberWallPlank(builder, floorWidth, wallSegCount, i);
+
+        // plank 2
+        mat4.copy(builder.cursor, cursor2);
+        mat4.translate(builder.cursor, builder.cursor, [0, 1, 0]);
+        // mat4.rotateX(
+        //   builder.cursor,
+        //   builder.cursor,
+        //   Math.PI * xFactor * 1.0 * ccwf
+        // );
+        mat4.translate(builder.cursor, builder.cursor, wallOffset);
+        appendTimberWallPlank(builder, floorWidth, wallSegCount, i + 0.5);
+
+        // mat4.rotateX(cursor2, cursor2, Math.PI * xFactor * ccwf);
+        // xFactor = xFactor - 0.005;
+      }
+      mat4.translate(cursor2, cursor2, [0, 2, 0]);
+    }
+  }
+
   _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
   const timberState = getBoardsFromMesh(_timberMesh);
   unshareProvokingForWood(_timberMesh, timberState);
