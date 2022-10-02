@@ -176,28 +176,29 @@ export async function initLD51Game(em, hosting) {
         const ccw = ccwi === 0;
         const ccwf = ccw ? -1 : 1;
         let xFactor = 0.05;
+        const wallOffset = [-ribWidth, 0, ribDepth * -ccwf];
         const cursor2 = mat4.create();
         mat4.rotateX(cursor2, cursor2, Math.PI * 0.4 * -ccwf);
-        mat4.copy(builder.cursor, cursor2);
-        mat4.translate(builder.cursor, builder.cursor, [0, 0, ribDepth]);
-        appendTimberWallPlank(builder, wallLength, wallSegCount);
+        // mat4.copy(builder.cursor, cursor2);
+        // mat4.translate(builder.cursor, builder.cursor, wallOffset);
+        // appendTimberWallPlank(builder, wallLength, wallSegCount);
         mat4.copy(builder.cursor, cursor2);
         mat4.translate(builder.cursor, builder.cursor, [0, 1, 0]);
         // mat4.rotateX(builder.cursor, builder.cursor, Math.PI * xFactor * ccwf);
-        mat4.translate(builder.cursor, builder.cursor, [0, 0, ribDepth * 1]);
+        mat4.translate(builder.cursor, builder.cursor, wallOffset);
         appendTimberWallPlank(builder, wallLength, wallSegCount);
         for (let i = 0; i < numRibSegs; i++) {
             mat4.translate(cursor2, cursor2, [0, 2, 0]);
             mat4.rotateX(cursor2, cursor2, Math.PI * xFactor * ccwf);
             // plank 1
             mat4.copy(builder.cursor, cursor2);
-            mat4.translate(builder.cursor, builder.cursor, [0, 0, ribDepth * -ccwf]);
+            mat4.translate(builder.cursor, builder.cursor, wallOffset);
             appendTimberWallPlank(builder, wallLength, wallSegCount);
             // plank 2
             mat4.copy(builder.cursor, cursor2);
             mat4.translate(builder.cursor, builder.cursor, [0, 1, 0]);
             mat4.rotateX(builder.cursor, builder.cursor, Math.PI * xFactor * 1.0 * ccwf);
-            mat4.translate(builder.cursor, builder.cursor, [0, 0, ribDepth * -ccwf]);
+            mat4.translate(builder.cursor, builder.cursor, wallOffset);
             appendTimberWallPlank(builder, wallLength, wallSegCount);
             mat4.rotateX(cursor2, cursor2, Math.PI * xFactor * ccwf);
             xFactor = xFactor - 0.005;
