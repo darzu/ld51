@@ -446,7 +446,11 @@ export function createEmptyMesh(dbgName: string) {
 }
 
 export type TimberBuilder = ReturnType<typeof createTimberBuilder>;
-export function createTimberBuilder(mesh: RawMesh, W: number, D: number) {
+export function createTimberBuilder(
+  mesh: RawMesh,
+  width: number,
+  depth: number
+) {
   // TODO(@darzu): have a system for building wood?
 
   // const W = 0.5; // width
@@ -454,9 +458,9 @@ export function createTimberBuilder(mesh: RawMesh, W: number, D: number) {
 
   const cursor: mat4 = mat4.create();
 
-  return {
-    width: W,
-    depth: D,
+  const b = {
+    width,
+    depth,
     mesh,
     cursor,
     addSplinteredEnd,
@@ -466,6 +470,8 @@ export function createTimberBuilder(mesh: RawMesh, W: number, D: number) {
     setCursor,
   };
 
+  return b;
+
   function setCursor(newCursor: mat4) {
     mat4.copy(cursor, newCursor);
   }
@@ -473,8 +479,8 @@ export function createTimberBuilder(mesh: RawMesh, W: number, D: number) {
   function addSplinteredEnd(lastLoopEndVi: number, numJags: number) {
     const vi = mesh.pos.length;
 
-    const v0 = vec3.fromValues(0, 0, D);
-    const v1 = vec3.fromValues(0, 0, -D);
+    const v0 = vec3.fromValues(0, 0, b.depth);
+    const v1 = vec3.fromValues(0, 0, -b.depth);
     vec3.transformMat4(v0, v0, cursor);
     vec3.transformMat4(v1, v1, cursor);
     mesh.pos.push(v0, v1);
@@ -493,16 +499,16 @@ export function createTimberBuilder(mesh: RawMesh, W: number, D: number) {
     let v_blast = v_bbl;
 
     // const numJags = 5;
-    const xStep = (W * 2) / numJags;
+    const xStep = (b.width * 2) / numJags;
     let lastY = 0;
-    let lastX = -W;
+    let lastX = -b.width;
     for (let i = 0; i <= numJags; i++) {
-      const x = i * xStep - W + jitter(0.05);
+      const x = i * xStep - b.width + jitter(0.05);
       let y = lastY;
       while (Math.abs(y - lastY) < 0.1)
         // TODO(@darzu): HACK to make sure it's not too even
         y = i % 2 === 0 ? 0.7 + jitter(0.6) : 0.2 + jitter(0.1);
-      let d = D; // + jitter(0.1);
+      let d = b.depth; // + jitter(0.1);
 
       // TODO(@darzu): HACK! This ensures that adjacent "teeth" in the splinter
       //    are properly manifold/convex/something-something
@@ -575,10 +581,10 @@ export function createTimberBuilder(mesh: RawMesh, W: number, D: number) {
   }
 
   function addLoopVerts() {
-    const v0 = vec3.fromValues(W, 0, D);
-    const v1 = vec3.fromValues(W, 0, -D);
-    const v2 = vec3.fromValues(-W, 0, -D);
-    const v3 = vec3.fromValues(-W, 0, D);
+    const v0 = vec3.fromValues(b.width, 0, b.depth);
+    const v1 = vec3.fromValues(b.width, 0, -b.depth);
+    const v2 = vec3.fromValues(-b.width, 0, -b.depth);
+    const v3 = vec3.fromValues(-b.width, 0, b.depth);
     vec3.transformMat4(v0, v0, cursor);
     vec3.transformMat4(v1, v1, cursor);
     vec3.transformMat4(v2, v2, cursor);

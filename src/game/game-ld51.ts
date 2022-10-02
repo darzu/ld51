@@ -181,19 +181,38 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
 
   const timber = em.newEntity();
   const _timberMesh = createEmptyMesh("rib");
-  const builder = createTimberBuilder(_timberMesh, 0.5, 0.4);
-  const ribCount = 12;
+  const ribWidth = 0.5;
+  const ribDepth = 0.4;
+  const builder = createTimberBuilder(_timberMesh, ribWidth, ribDepth);
+  const ribCount = 10;
+  const ribSpace = 3;
   for (let i = 0; i < ribCount; i++) {
     mat4.identity(builder.cursor);
-    mat4.translate(builder.cursor, builder.cursor, [i * 2, 0, 0]);
-    mkTimberRib(builder, true);
+    mat4.translate(builder.cursor, builder.cursor, [i * ribSpace, 0, 0]);
+    appendTimberRib(builder, true);
   }
   for (let i = 0; i < ribCount; i++) {
     mat4.identity(builder.cursor);
     // mat4.scale(builder.cursor, builder.cursor, [1, 1, -1]);
-    mat4.translate(builder.cursor, builder.cursor, [i * 2, 0, 0]);
-    mkTimberRib(builder, false);
+    mat4.translate(builder.cursor, builder.cursor, [i * ribSpace, 0, 0]);
+    appendTimberRib(builder, false);
   }
+  const floorPlankCount = 7;
+  const floorSpace = 1.24;
+  const floorLength = ribSpace * (ribCount - 1) + ribWidth * 2.0;
+  const floorSegCount = 12;
+  for (let i = 0; i < floorPlankCount; i++) {
+    mat4.identity(builder.cursor);
+    mat4.translate(builder.cursor, builder.cursor, [
+      -ribWidth,
+      3,
+      (i - (floorPlankCount - 1) * 0.5) * floorSpace + jitter(0.01),
+    ]);
+    builder.width = 0.6;
+    builder.depth = 0.2;
+    appendTimberFloorPlank(builder, floorLength, floorSegCount);
+  }
+
   _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
   const timberState = getBoardsFromMesh(_timberMesh);
   unshareProvokingForWood(_timberMesh, timberState);
@@ -211,7 +230,8 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   // vec3.negate(timberPos, timberPos);
   // vec3.scale(timberPos, timberPos, scale);
   timberPos[1] += 1;
-  timberPos[0] -= ribCount * 0.5 * 2;
+  timberPos[0] -= ribCount * 0.5 * ribSpace;
+  // timberPos[2] -= floorPlankCount * 0.5 * floorSpace;
   em.ensureComponentOn(timber, PositionDef, timberPos);
   // em.ensureComponentOn(timber, PositionDef, [0, 0, -4]);
   em.ensureComponentOn(timber, RotationDef);
@@ -341,7 +361,38 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   startPirates();
 }
 
-export function mkTimberRib(b: TimberBuilder, ccw: boolean) {
+export function appendTimberFloorPlank(
+  b: TimberBuilder,
+  length: number,
+  numSegs: number
+) {
+  const firstQuadIdx = b.mesh.quad.length;
+
+  mat4.rotateY(b.cursor, b.cursor, Math.PI * 0.5);
+  mat4.rotateX(b.cursor, b.cursor, Math.PI * 0.5);
+
+  b.addLoopVerts();
+  b.addEndQuad(true);
+
+  const segLen = length / numSegs;
+
+  for (let i = 0; i < numSegs; i++) {
+    mat4.translate(b.cursor, b.cursor, [0, segLen, 0]);
+    b.addLoopVerts();
+    b.addSideQuads();
+  }
+
+  b.addEndQuad(false);
+
+  for (let qi = firstQuadIdx; qi < b.mesh.quad.length; qi++)
+    b.mesh.colors.push(vec3.clone(BLACK));
+
+  // console.dir(b.mesh);
+
+  return b.mesh;
+}
+
+export function appendTimberRib(b: TimberBuilder, ccw: boolean) {
   const firstQuadIdx = b.mesh.quad.length;
 
   const ccwf = ccw ? -1 : 1;
