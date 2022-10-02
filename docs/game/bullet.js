@@ -97,6 +97,11 @@ export function fireBullet(em, team, location, rotation, speed, // = 0.02,
 rotationSpeed, // = 0.02,
 gravity, // = 6
 health) {
+    {
+        const music = EM.getResource(MusicDef);
+        if (music)
+            music.playChords([3], "minor", 2.0, 5.0, 1);
+    }
     let bulletAxis = vec3.fromValues(0, 0, -1);
     vec3.transformQuat(bulletAxis, bulletAxis, rotation);
     vec3.normalize(bulletAxis, bulletAxis);
@@ -148,11 +153,10 @@ export async function breakBullet(bullet) {
         return; // TODO(@darzu): BUG. Why does this happen sometimes?
     if (!_bulletPartPoolIsInit)
         await initBulletPartPool();
-    const { music, assets } = await em.whenResources(MusicDef, AssetsDef);
-    // TODO(@darzu): different sound
-    music.playChords([3], "minor", 2.0, 5.0, -1);
-    for (let pe of getNextBulletPartSet()) {
-        if (!pe)
+    // const { music, assets } = await em.whenResources(MusicDef, AssetsDef);
+    const set = getNextBulletPartSet();
+    for (let pe of set) {
+        if (!pe || !bullet || !bullet.world)
             continue;
         vec3.copy(pe.position, bullet.world.position);
         vec3.copy(pe.color, bullet.color);

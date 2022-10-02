@@ -90,6 +90,7 @@ import { GravityDef } from "./gravity.js";
 import { InRangeDef, InteractableDef } from "./interact.js";
 import { LifetimeDef } from "./lifetime.js";
 import { createPlayer, LocalPlayerDef, PlayerDef } from "./player.js";
+import { TextDef } from "./ui.js";
 
 /*
   TODO:
@@ -121,6 +122,9 @@ export const sandboxSystems: string[] = [];
 export const LD51CannonDef = EM.defineComponent("ld51Cannon", () => {
   return {};
 });
+
+let pirateKills = 0;
+let healthPercent = 100;
 
 export async function initLD51Game(em: EntityManager, hosting: boolean) {
   const camera = em.addSingletonComponent(CameraDef);
@@ -716,6 +720,19 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       }
     }
 
+    // starter ammo
+    {
+      assert(colFloor.collider.shape === "AABB");
+      for (let i = 0; i < 3; i++) {
+        const pos: vec3 = [
+          colFloor.collider.aabb.max[0] - 2,
+          colFloor.collider.aabb.max[1] + 2,
+          colFloor.collider.aabb.max[2] - 2 * i - 3,
+        ];
+        spawnGoodBall(pos);
+      }
+    }
+
     em.registerSystem(
       [GoodBallDef, PositionDef, GravityDef, LinearVelocityDef],
       [],
@@ -821,6 +838,43 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   }
 
   startPirates();
+
+  const startHealth = getCurrentHealth();
+  {
+    em.registerSystem(
+      [],
+      [InputsDef, LocalPlayerDef, TextDef, TimeDef],
+      (es, res) => {
+        const player = em.findEntity(res.localPlayer.playerId, [PlayerDef])!;
+        if (!player) return;
+
+        const currentHealth = getCurrentHealth();
+        healthPercent = (currentHealth / startHealth) * 100;
+        // console.log(`healthPercent: ${healthPercent}`);
+
+        const elapsed = nextSpawn - res.time.time;
+        const elapsedPer = Math.min(Math.ceil((elapsed / spawnTimer) * 10), 10);
+
+        res.text.upperText = `Hull %${healthPercent.toFixed(
+          1
+        )}, Kills ${pirateKills}, !${elapsedPer}`;
+
+        res.text.lowerText = `WASD+Shift; left click to pick up cannon balls and fire the cannons. Survive! They attack like clockwork.`;
+      },
+      "progressGame"
+    );
+    sandboxSystems.push("progressGame");
+  }
+
+  function getCurrentHealth() {
+    let health = 0;
+    for (let b of timberHealth.boards) {
+      for (let s of b) {
+        health += s.health;
+      }
+    }
+    return health;
+  }
 }
 
 export function appendPirateShip(b: TimberBuilder) {
@@ -1013,19 +1067,48 @@ function rotatePiratePlatform(
 
 const pitchSpeed = 0.000042;
 
+const numStartPirates = 2;
+let nextSpawn = 0;
+
+const tenSeconds = 1000 * 10; // TODO(@darzu): make 10 seconds
+
+let spawnTimer = tenSeconds;
+
 async function startPirates() {
   const em: EntityManager = EM;
 
   // TODO(@darzu): HACK!
   registerDestroyPirateHandler(destroyPirateShip);
 
-  const numPirates = 7;
-  for (let i = 0; i < numPirates; i++) {
-    const p = await spawnPirate();
-    rotatePiratePlatform(p, i * ((2 * Math.PI) / numPirates));
+  for (let i = 0; i < numStartPirates; i++) {
+    const p = await spawnPirate(i * ((2 * Math.PI) / numStartPirates));
   }
 
-  const tenSeconds = 1000 * 3; // TODO(@darzu): make 10 seconds
+  nextSpawn = spawnTimer;
+  em.registerSystem(
+    [PiratePlatformDef],
+    [TimeDef],
+    (ps, res) => {
+      const pirateCount = ps.length;
+      if (res.time.time > nextSpawn) {
+        nextSpawn += spawnTimer;
+
+        // console.log("SPAWN");
+
+        const rad = Math.random() * 2 * Math.PI;
+        if (pirateCount < 10) {
+          spawnPirate(rad);
+        }
+        if (pirateCount < 2) {
+          spawnPirate(rad + Math.PI);
+        }
+        spawnTimer *= 0.95;
+      }
+    },
+    "spawnPirates"
+  );
+  sandboxSystems.push("spawnPirates");
+
   const fireStagger = 150;
   // const tiltPeriod = 5700;
   em.registerSystem(
@@ -1061,11 +1144,11 @@ async function startPirates() {
 
         // fire cannons
         const myTime = res.time.time + pIdx * fireStagger;
-        let doFire = myTime - p.piratePlatform.lastFire > tenSeconds;
+        let doFire = myTime - p.piratePlatform.lastFire > spawnTimer;
         if (doFire) {
           p.piratePlatform.lastFire = myTime;
           if (WorldFrameDef.isOn(c)) {
-            console.log(`pirate fire`);
+            // console.log(`pirate fire`);
 
             // TODO(@darzu): DBG!!!!!
             // const ballHealth = 20.0;
@@ -1089,7 +1172,8 @@ async function startPirates() {
   sandboxSystems.push("updatePiratePlatforms");
 }
 
-async function spawnPirate() {
+async function spawnPirate(rad: number) {
+  // console.log("SPAWNED!");
   const em: EntityManager = EM;
 
   const initialPitch = Math.PI * 0.06;
@@ -1184,12 +1268,15 @@ async function spawnPirate() {
     em.ensureComponentOn(timber, PhysicsParentDef, platform.id);
   }
 
+  rotatePiratePlatform(platform, rad);
+
   return platform;
 }
 
 export function destroyPirateShip(id: number, timber: Entity) {
   // TODO(@darzu): impl
-  console.log(`destroy ${id}`);
+  // console.log(`destroy ${id}`);
+
   // pirateShip
   const e = EM.findEntity(id, [PiratePlatformDef]);
   if (e) {
@@ -1197,6 +1284,10 @@ export function destroyPirateShip(id: number, timber: Entity) {
     EM.ensureComponentOn(e, DeletedDef);
     if (e.piratePlatform.cannon())
       EM.ensureComponentOn(e.piratePlatform.cannon()!, DeletedDef);
+    pirateKills += 1;
+
+    const music = EM.getResource(MusicDef);
+    if (music) music.playChords([3], "minor", 2.0, 5.0, 1);
   }
 
   if (WoodHealthDef.isOn(timber) && PhysicsParentDef.isOn(timber)) {

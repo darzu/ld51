@@ -6,6 +6,7 @@ import { GravityDef } from "./game/gravity.js";
 import { mat4, quat, vec2, vec3, vec4 } from "./gl-matrix.js";
 import { onInit } from "./init.js";
 import { jitter } from "./math.js";
+import { MusicDef } from "./music.js";
 import { copyAABB, copyLine, createAABB, createLine, doesOverlapAABB, emptyLine, getAABBFromPositions, getLineEnd, getLineMid, lineSphereIntersections, transformAABB, transformLine, } from "./physics/broadphase.js";
 import { ColliderDef } from "./physics/collider.js";
 import { AngularVelocityDef, LinearVelocityDef } from "./physics/motion.js";
@@ -103,6 +104,11 @@ onInit((em) => {
                                         assert(PhysicsParentDef.isOn(w));
                                         for (let fn of _destroyPirateShipFns)
                                             fn(w.physicsParent.id, w);
+                                    }
+                                    else if (ball.bullet.team === 2) {
+                                        const music = EM.getResource(MusicDef);
+                                        if (music)
+                                            music.playChords([2, 3], "minor", 0.2, 5.0, -2);
                                     }
                                 }
                             }
