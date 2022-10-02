@@ -204,20 +204,20 @@ export async function initLD51Game(em, hosting) {
         mat4.translate(builder.cursor, builder.cursor, [0, 1, 0]);
         // mat4.rotateX(builder.cursor, builder.cursor, Math.PI * xFactor * ccwf);
         mat4.translate(builder.cursor, builder.cursor, wallOffset);
-        appendTimberWallPlank(builder, wallLength, wallSegCount);
+        appendTimberWallPlank(builder, wallLength, wallSegCount, -1);
         for (let i = 0; i < numRibSegs; i++) {
             mat4.translate(cursor2, cursor2, [0, 2, 0]);
             mat4.rotateX(cursor2, cursor2, Math.PI * xFactor * ccwf);
             // plank 1
             mat4.copy(builder.cursor, cursor2);
             mat4.translate(builder.cursor, builder.cursor, wallOffset);
-            appendTimberWallPlank(builder, wallLength, wallSegCount);
+            appendTimberWallPlank(builder, wallLength, wallSegCount, i);
             // plank 2
             mat4.copy(builder.cursor, cursor2);
             mat4.translate(builder.cursor, builder.cursor, [0, 1, 0]);
             mat4.rotateX(builder.cursor, builder.cursor, Math.PI * xFactor * 1.0 * ccwf);
             mat4.translate(builder.cursor, builder.cursor, wallOffset);
-            appendTimberWallPlank(builder, wallLength, wallSegCount);
+            appendTimberWallPlank(builder, wallLength, wallSegCount, i + 0.5);
             mat4.rotateX(cursor2, cursor2, Math.PI * xFactor * ccwf);
             xFactor = xFactor - 0.005;
         }
@@ -258,11 +258,22 @@ export async function initLD51Game(em, hosting) {
     // CANNONS
     const realCeilHeight = ceilHeight + timberPos[1];
     const realFloorHeight = timberPos[1] + floorHeight;
-    const cannon = em.newEntity();
-    em.ensureComponentOn(cannon, RenderableConstructDef, res.assets.ld51_cannon.proto);
-    em.ensureComponentOn(cannon, PositionDef, [0, realFloorHeight + 1, 0]);
-    em.ensureComponentOn(cannon, RotationDef, quat.rotateX(quat.create(), quat.IDENTITY, Math.PI * 0.03));
-    em.ensureComponentOn(cannon, ColorDef, vec3.clone(ENDESGA16.darkGreen));
+    for (let i = 0; i < 2; i++) {
+        const isLeft = i === 0 ? 1 : -1;
+        const cannon = em.newEntity();
+        em.ensureComponentOn(cannon, RenderableConstructDef, res.assets.ld51_cannon.proto);
+        em.ensureComponentOn(cannon, PositionDef, [
+            -7.5,
+            realFloorHeight + 2,
+            -4 * isLeft,
+        ]);
+        em.ensureComponentOn(cannon, RotationDef);
+        quat.rotateX(cannon.rotation, cannon.rotation, Math.PI * 0.03 * isLeft);
+        if (isLeft !== 1) {
+            quat.rotateY(cannon.rotation, cannon.rotation, Math.PI);
+        }
+        em.ensureComponentOn(cannon, ColorDef, vec3.clone(ENDESGA16.darkGreen));
+    }
     const splinterObjId = 7654;
     em.registerSystem([
         SplinterParticleDef,
@@ -506,7 +517,7 @@ export function appendPirateShip(b) {
         b.mesh.colors.push(vec3.clone(BLACK));
     return b.mesh;
 }
-export function appendTimberWallPlank(b, length, numSegs) {
+export function appendTimberWallPlank(b, length, numSegs, plankIdx) {
     const firstQuadIdx = b.mesh.quad.length;
     // mat4.rotateY(b.cursor, b.cursor, Math.PI * 0.5);
     // mat4.rotateX(b.cursor, b.cursor, Math.PI * 0.5);
@@ -515,9 +526,20 @@ export function appendTimberWallPlank(b, length, numSegs) {
     b.addEndQuad(true);
     const segLen = length / numSegs;
     for (let i = 0; i < numSegs; i++) {
-        mat4.translate(b.cursor, b.cursor, [0, segLen, 0]);
-        b.addLoopVerts();
-        b.addSideQuads();
+        if (i === 2 && (plankIdx === 3 || plankIdx === 3.5)) {
+            // hole
+            b.addEndQuad(false);
+            mat4.translate(b.cursor, b.cursor, [0, segLen * 0.55, 0]);
+            b.addLoopVerts();
+            b.addEndQuad(true);
+            mat4.translate(b.cursor, b.cursor, [0, segLen * 0.45, 0]);
+        }
+        else {
+            // normal
+            mat4.translate(b.cursor, b.cursor, [0, segLen, 0]);
+            b.addLoopVerts();
+            b.addSideQuads();
+        }
     }
     b.addEndQuad(false);
     for (let qi = firstQuadIdx; qi < b.mesh.quad.length; qi++)

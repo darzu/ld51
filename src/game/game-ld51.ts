@@ -281,7 +281,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
     mat4.translate(builder.cursor, builder.cursor, [0, 1, 0]);
     // mat4.rotateX(builder.cursor, builder.cursor, Math.PI * xFactor * ccwf);
     mat4.translate(builder.cursor, builder.cursor, wallOffset);
-    appendTimberWallPlank(builder, wallLength, wallSegCount);
+    appendTimberWallPlank(builder, wallLength, wallSegCount, -1);
 
     for (let i = 0; i < numRibSegs; i++) {
       mat4.translate(cursor2, cursor2, [0, 2, 0]);
@@ -290,7 +290,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       // plank 1
       mat4.copy(builder.cursor, cursor2);
       mat4.translate(builder.cursor, builder.cursor, wallOffset);
-      appendTimberWallPlank(builder, wallLength, wallSegCount);
+      appendTimberWallPlank(builder, wallLength, wallSegCount, i);
 
       // plank 2
       mat4.copy(builder.cursor, cursor2);
@@ -301,7 +301,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
         Math.PI * xFactor * 1.0 * ccwf
       );
       mat4.translate(builder.cursor, builder.cursor, wallOffset);
-      appendTimberWallPlank(builder, wallLength, wallSegCount);
+      appendTimberWallPlank(builder, wallLength, wallSegCount, i + 0.5);
 
       mat4.rotateX(cursor2, cursor2, Math.PI * xFactor * ccwf);
       xFactor = xFactor - 0.005;
@@ -345,19 +345,26 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   // CANNONS
   const realCeilHeight = ceilHeight + timberPos[1];
   const realFloorHeight = timberPos[1] + floorHeight;
-  const cannon = em.newEntity();
-  em.ensureComponentOn(
-    cannon,
-    RenderableConstructDef,
-    res.assets.ld51_cannon.proto
-  );
-  em.ensureComponentOn(cannon, PositionDef, [0, realFloorHeight + 1, 0]);
-  em.ensureComponentOn(
-    cannon,
-    RotationDef,
-    quat.rotateX(quat.create(), quat.IDENTITY, Math.PI * 0.03)
-  );
-  em.ensureComponentOn(cannon, ColorDef, vec3.clone(ENDESGA16.darkGreen));
+  for (let i = 0; i < 2; i++) {
+    const isLeft = i === 0 ? 1 : -1;
+    const cannon = em.newEntity();
+    em.ensureComponentOn(
+      cannon,
+      RenderableConstructDef,
+      res.assets.ld51_cannon.proto
+    );
+    em.ensureComponentOn(cannon, PositionDef, [
+      -7.5,
+      realFloorHeight + 2,
+      -4 * isLeft,
+    ]);
+    em.ensureComponentOn(cannon, RotationDef);
+    quat.rotateX(cannon.rotation, cannon.rotation, Math.PI * 0.03 * isLeft);
+    if (isLeft !== 1) {
+      quat.rotateY(cannon.rotation, cannon.rotation, Math.PI);
+    }
+    em.ensureComponentOn(cannon, ColorDef, vec3.clone(ENDESGA16.darkGreen));
+  }
 
   const splinterObjId = 7654;
   em.registerSystem(
@@ -653,7 +660,8 @@ export function appendPirateShip(b: TimberBuilder) {
 export function appendTimberWallPlank(
   b: TimberBuilder,
   length: number,
-  numSegs: number
+  numSegs: number,
+  plankIdx: number
 ) {
   const firstQuadIdx = b.mesh.quad.length;
 
@@ -667,9 +675,19 @@ export function appendTimberWallPlank(
   const segLen = length / numSegs;
 
   for (let i = 0; i < numSegs; i++) {
-    mat4.translate(b.cursor, b.cursor, [0, segLen, 0]);
-    b.addLoopVerts();
-    b.addSideQuads();
+    if (i === 2 && (plankIdx === 3 || plankIdx === 3.5)) {
+      // hole
+      b.addEndQuad(false);
+      mat4.translate(b.cursor, b.cursor, [0, segLen * 0.55, 0]);
+      b.addLoopVerts();
+      b.addEndQuad(true);
+      mat4.translate(b.cursor, b.cursor, [0, segLen * 0.45, 0]);
+    } else {
+      // normal
+      mat4.translate(b.cursor, b.cursor, [0, segLen, 0]);
+      b.addLoopVerts();
+      b.addSideQuads();
+    }
   }
 
   b.addEndQuad(false);
