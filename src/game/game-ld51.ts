@@ -210,7 +210,8 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   // const timberPos = vec3.clone(res.assets.timber_rib.center);
   // vec3.negate(timberPos, timberPos);
   // vec3.scale(timberPos, timberPos, scale);
-  timberPos[1] += 7;
+  timberPos[1] += 1;
+  timberPos[0] -= ribCount * 0.5 * 2;
   em.ensureComponentOn(timber, PositionDef, timberPos);
   // em.ensureComponentOn(timber, PositionDef, [0, 0, -4]);
   em.ensureComponentOn(timber, RotationDef);
