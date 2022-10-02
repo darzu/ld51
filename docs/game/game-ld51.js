@@ -304,7 +304,9 @@ export async function initLD51Game(em, hosting) {
         if (!player)
             return;
         for (let c of cannons) {
-            if (c.inRange && res.inputs.lclick /* && c.cannonLocal.fireMs <= 0*/) {
+            if (player.player.holdingBall &&
+                c.inRange &&
+                res.inputs.lclick /* && c.cannonLocal.fireMs <= 0*/) {
                 const ballHealth = 2.0;
                 let bulletAxis = vec3.fromValues(0, 0, -1);
                 vec3.transformQuat(bulletAxis, bulletAxis, c.world.rotation);
@@ -313,6 +315,12 @@ export async function initLD51Game(em, hosting) {
                 vec3.scale(bulletAxis, bulletAxis, 2);
                 vec3.add(bulletPos, bulletPos, bulletAxis);
                 fireBullet(em, 1, bulletPos, c.world.rotation, 0.05, 0.02, 3, ballHealth);
+                // remove player ball
+                const heldBall = EM.findEntity(player.player.holdingBall, []);
+                if (heldBall) {
+                    EM.ensureComponentOn(heldBall, DeletedDef);
+                }
+                player.player.holdingBall = 0;
                 // c.cannonLocal.fireMs = c.cannonLocal.fireDelayMs;
                 const chord = randChordId();
                 res.music.playChords([chord], "major", 2.0, 3.0, -2);
@@ -521,10 +529,27 @@ export async function initLD51Game(em, hosting) {
             em.ensureComponentOn(ball, GoodBallDef);
             em.ensureComponentOn(ball, LinearVelocityDef);
             em.ensureComponentOn(ball, GravityDef, [0, -3, 0]);
+            {
+                const interactBox = EM.newEntity();
+                const interactAABB = copyAABB(createAABB(), res.assets.ball.aabb);
+                vec3.scale(interactAABB.min, interactAABB.min, 2);
+                vec3.scale(interactAABB.max, interactAABB.max, 2);
+                EM.ensureComponentOn(interactBox, PhysicsParentDef, ball.id);
+                EM.ensureComponentOn(interactBox, PositionDef, [0, 0, 0]);
+                EM.ensureComponentOn(interactBox, ColliderDef, {
+                    shape: "AABB",
+                    solid: false,
+                    aabb: interactAABB,
+                });
+                em.ensureComponentOn(ball, InteractableDef, interactBox.id);
+                // em.ensureComponentOn(ball, WorldFrameDef);
+            }
         }
         em.registerSystem([GoodBallDef, PositionDef, GravityDef, LinearVelocityDef], [], (es, res) => {
             // TODO(@darzu):
             for (let ball of es) {
+                if (PhysicsParentDef.isOn(ball))
+                    continue; // being held
                 if (ball.position[1] <= realFloorHeight + 1) {
                     ball.position[1] = realFloorHeight + 1;
                     vec3.zero(ball.linearVelocity);
@@ -534,6 +559,27 @@ export async function initLD51Game(em, hosting) {
             }
         }, "fallingGoodBalls");
         sandboxSystems.push("fallingGoodBalls");
+        em.registerSystem([GoodBallDef, InteractableDef, InRangeDef, PositionDef], [InputsDef, LocalPlayerDef], (es, res) => {
+            const player = em.findEntity(res.localPlayer.playerId, [PlayerDef]);
+            if (!player)
+                return;
+            if (player.player.holdingBall)
+                return;
+            // TODO(@darzu):
+            if (res.inputs.lclick) {
+                for (let ball of es) {
+                    if (PhysicsParentDef.isOn(ball))
+                        continue;
+                    // pick up this ball
+                    player.player.holdingBall = ball.id;
+                    em.ensureComponentOn(ball, PhysicsParentDef, player.id);
+                    vec3.set(ball.position, 0, 0, -1);
+                    em.ensureComponentOn(ball, ScaleDef, [0.4, 0.4, 0.4]);
+                    em.removeComponent(ball.id, InteractableDef);
+                }
+            }
+        }, "pickUpBalls");
+        sandboxSystems.push("pickUpBalls");
         // TODO(@darzu): GHOST MODE
         const DBG_PLAYER = false;
         if (DBG_PLAYER) {
@@ -706,7 +752,8 @@ export function appendTimberRib(b, ccw) {
     // console.dir(b.mesh);
     return b.mesh;
 }
-const startDelay = 1000;
+const startDelay = 0;
+// const startDelay = 1000;
 export const PiratePlatformDef = EM.defineComponent("piratePlatform", (cannon, tiltPeriod, tiltTimer) => {
     return {
         cannon: createRef(cannon),
@@ -762,8 +809,8 @@ async function startPirates() {
                 if (WorldFrameDef.isOn(c)) {
                     console.log(`pirate fire`);
                     // TODO(@darzu): DBG!!!!!
-                    const ballHealth = 20.0;
-                    // const ballHealth = 2.0;
+                    // const ballHealth = 20.0;
+                    const ballHealth = 2.0;
                     fireBullet(em, 2, c.world.position, c.world.rotation, 0.05, 0.02, 3, ballHealth);
                 }
             }

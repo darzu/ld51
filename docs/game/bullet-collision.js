@@ -20,7 +20,8 @@ export function registerBulletCollisionSystem(em) {
                 let otherBullets = otherIds.map((id) => id > o.id && em.findEntity(id, [BulletDef]));
                 for (let otherBullet of otherBullets) {
                     if (otherBullet) {
-                        raiseBulletBullet(o, otherBullet);
+                        // TODO(@darzu): HACK
+                        // raiseBulletBullet(o, otherBullet);
                     }
                 }
                 // find players this bullet is colliding with, other than the player who shot the bullet

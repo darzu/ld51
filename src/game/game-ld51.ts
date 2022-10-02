@@ -407,7 +407,11 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       const player = em.findEntity(res.localPlayer.playerId, [PlayerDef])!;
       if (!player) return;
       for (let c of cannons) {
-        if (c.inRange && res.inputs.lclick /* && c.cannonLocal.fireMs <= 0*/) {
+        if (
+          player.player.holdingBall &&
+          c.inRange &&
+          res.inputs.lclick /* && c.cannonLocal.fireMs <= 0*/
+        ) {
           const ballHealth = 2.0;
 
           let bulletAxis = vec3.fromValues(0, 0, -1);
@@ -427,6 +431,14 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
             3,
             ballHealth
           );
+
+          // remove player ball
+          const heldBall = EM.findEntity(player.player.holdingBall, []);
+          if (heldBall) {
+            EM.ensureComponentOn(heldBall, DeletedDef);
+          }
+
+          player.player.holdingBall = 0;
 
           // c.cannonLocal.fireMs = c.cannonLocal.fireDelayMs;
 
@@ -687,6 +699,21 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       em.ensureComponentOn(ball, GoodBallDef);
       em.ensureComponentOn(ball, LinearVelocityDef);
       em.ensureComponentOn(ball, GravityDef, [0, -3, 0]);
+      {
+        const interactBox = EM.newEntity();
+        const interactAABB = copyAABB(createAABB(), res.assets.ball.aabb);
+        vec3.scale(interactAABB.min, interactAABB.min, 2);
+        vec3.scale(interactAABB.max, interactAABB.max, 2);
+        EM.ensureComponentOn(interactBox, PhysicsParentDef, ball.id);
+        EM.ensureComponentOn(interactBox, PositionDef, [0, 0, 0]);
+        EM.ensureComponentOn(interactBox, ColliderDef, {
+          shape: "AABB",
+          solid: false,
+          aabb: interactAABB,
+        });
+        em.ensureComponentOn(ball, InteractableDef, interactBox.id);
+        // em.ensureComponentOn(ball, WorldFrameDef);
+      }
     }
 
     em.registerSystem(
@@ -695,6 +722,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       (es, res) => {
         // TODO(@darzu):
         for (let ball of es) {
+          if (PhysicsParentDef.isOn(ball)) continue; // being held
           if (ball.position[1] <= realFloorHeight + 1) {
             ball.position[1] = realFloorHeight + 1;
             vec3.zero(ball.linearVelocity);
@@ -706,6 +734,30 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       "fallingGoodBalls"
     );
     sandboxSystems.push("fallingGoodBalls");
+
+    em.registerSystem(
+      [GoodBallDef, InteractableDef, InRangeDef, PositionDef],
+      [InputsDef, LocalPlayerDef],
+      (es, res) => {
+        const player = em.findEntity(res.localPlayer.playerId, [PlayerDef])!;
+        if (!player) return;
+        if (player.player.holdingBall) return;
+        // TODO(@darzu):
+        if (res.inputs.lclick) {
+          for (let ball of es) {
+            if (PhysicsParentDef.isOn(ball)) continue;
+            // pick up this ball
+            player.player.holdingBall = ball.id;
+            em.ensureComponentOn(ball, PhysicsParentDef, player.id);
+            vec3.set(ball.position, 0, 0, -1);
+            em.ensureComponentOn(ball, ScaleDef, [0.4, 0.4, 0.4]);
+            em.removeComponent(ball.id, InteractableDef);
+          }
+        }
+      },
+      "pickUpBalls"
+    );
+    sandboxSystems.push("pickUpBalls");
 
     // TODO(@darzu): GHOST MODE
     const DBG_PLAYER = false;
@@ -936,7 +988,8 @@ export function appendTimberRib(b: TimberBuilder, ccw: boolean) {
   return b.mesh;
 }
 
-const startDelay = 1000;
+const startDelay = 0;
+// const startDelay = 1000;
 
 export const PiratePlatformDef = EM.defineComponent(
   "piratePlatform",
@@ -1015,8 +1068,8 @@ async function startPirates() {
             console.log(`pirate fire`);
 
             // TODO(@darzu): DBG!!!!!
-            const ballHealth = 20.0;
-            // const ballHealth = 2.0;
+            // const ballHealth = 20.0;
+            const ballHealth = 2.0;
             fireBullet(
               em,
               2,

@@ -49,6 +49,8 @@ export const PlayerDef = EM.defineComponent("player", () => {
         rightLegId: 0,
         facingDir: vec3.create(),
         lookingForShip: true,
+        // TODO(@darzu): HACK
+        holdingBall: 0,
         // disabled noodle limbs
         // leftFootWorldPos: [0, 0, 0] as vec3,
         // rightFootWorldPos: [0, 0, 0] as vec3,
