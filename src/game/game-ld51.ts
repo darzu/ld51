@@ -529,39 +529,65 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       em.ensureComponentOn(aabbEnt, ColorDef, vec3.clone(ENDESGA16.orange));
     }
 
-    // const ghost = createGhost(em);
-    const _player = createPlayer(em);
-    vec3.set(_player.playerProps.location, -10, realFloorHeight + 6, 0);
-    em.whenEntityHas(
-      _player,
-      PositionDef,
-      RotationDef,
-      CameraFollowDef,
-      ControllableDef,
-      ColliderDef
-    ).then((player) => {
-      console.log(`init player?`);
-      Object.assign(player.controllable.modes, {
-        canCameraYaw: false,
-        canFall: true,
-        // canFly: true,
-        canFly: false,
-        canJump: false,
-        canMove: true,
-        canPitch: true,
-        canSprint: true,
-        canYaw: true,
-      });
-      quat.rotateY(player.rotation, player.rotation, Math.PI * 0.5);
+    // TODO(@darzu): GHOST MODE
+    const DBG_PLAYER = true;
 
-      player.collider.solid = true;
-      // player.cameraFollow.positionOffset = [0, 0, 5];
-      // g.controllable.modes.canYaw = false;
-      // g.controllable.modes.canCameraYaw = true;
-      // g.controllable.modes.canPitch = true;
-      // player.controllable.speed *= 0.5;
-      // player.controllable.sprintMul = 10;
-    });
+    if (DBG_PLAYER) {
+      const ghost = createGhost(em);
+      vec3.copy(ghost.position, [0, 1, -1.2]);
+      quat.setAxisAngle(ghost.rotation, [0.0, -1.0, 0.0], 1.62);
+      ghost.cameraFollow.positionOffset = [0, 0, 5];
+      ghost.controllable.speed *= 0.5;
+      ghost.controllable.sprintMul = 10;
+      const sphereMesh = cloneMesh(res.assets.ball.mesh);
+      const visible = false;
+      em.ensureComponentOn(ghost, RenderableConstructDef, sphereMesh, visible);
+      em.ensureComponentOn(ghost, ColorDef, [0.1, 0.1, 0.1]);
+      em.ensureComponentOn(ghost, PositionDef, [0, 0, 0]);
+      // em.ensureComponentOn(b2, PositionDef, [0, 0, -1.2]);
+      em.ensureComponentOn(ghost, WorldFrameDef);
+      // em.ensureComponentOn(b2, PhysicsParentDef, g.id);
+      em.ensureComponentOn(ghost, ColliderDef, {
+        shape: "AABB",
+        solid: false,
+        aabb: res.assets.ball.aabb,
+      });
+    }
+
+    if (!DBG_PLAYER) {
+      const _player = createPlayer(em);
+      // vec3.set(_player.playerProps.location, -10, realFloorHeight + 6, 0);
+      em.whenEntityHas(
+        _player,
+        PositionDef,
+        RotationDef,
+        CameraFollowDef,
+        ControllableDef,
+        ColliderDef
+      ).then((player) => {
+        console.log(`init player?`);
+        Object.assign(player.controllable.modes, {
+          canCameraYaw: false,
+          canFall: true,
+          // canFly: true,
+          canFly: false,
+          canJump: false,
+          canMove: true,
+          canPitch: true,
+          canSprint: true,
+          canYaw: true,
+        });
+        quat.rotateY(player.rotation, player.rotation, Math.PI * 0.5);
+
+        player.collider.solid = true;
+        // player.cameraFollow.positionOffset = [0, 0, 5];
+        // g.controllable.modes.canYaw = false;
+        // g.controllable.modes.canCameraYaw = true;
+        // g.controllable.modes.canPitch = true;
+        // player.controllable.speed *= 0.5;
+        // player.controllable.sprintMul = 10;
+      });
+    }
   }
 
   startPirates();
