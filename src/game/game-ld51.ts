@@ -30,6 +30,8 @@ import {
 import { PointLightDef } from "../render/lights.js";
 import {
   cloneMesh,
+  getAABBFromMesh,
+  getCenterFromAABB,
   normalizeMesh,
   scaleMesh,
   scaleMesh3,
@@ -52,7 +54,9 @@ import { objMap } from "../util.js";
 import { randomizeMeshColors, drawLine2 } from "../utils-game.js";
 import {
   createWoodHealth,
+  getBoardsFromMesh,
   SplinterParticleDef,
+  unshareProvokingForWood,
   WoodAssetsDef,
   WoodHealthDef,
   WoodStateDef,
@@ -60,6 +64,7 @@ import {
 import { yawpitchToQuat } from "../yawpitch.js";
 import {
   AssetsDef,
+  mkTimberRib,
   mkTimberSplinterEnd,
   mkTimberSplinterFree,
 } from "./assets.js";
@@ -77,8 +82,8 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
 
   const res = await em.whenResources(
     AssetsDef,
-    WoodAssetsDef,
-    GlobalCursor3dDef,
+    // WoodAssetsDef,
+    // GlobalCursor3dDef,
     RendererDef
   );
 
@@ -111,8 +116,8 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   ghost.controllable.speed *= 0.5;
   ghost.controllable.sprintMul = 10;
 
-  const c = res.globalCursor3d.cursor()!;
-  if (RenderableDef.isOn(c)) c.renderable.enabled = false;
+  // const c = res.globalCursor3d.cursor()!;
+  // if (RenderableDef.isOn(c)) c.renderable.enabled = false;
 
   const ground = em.newEntity();
   const groundMesh = cloneMesh(res.assets.hex.mesh);
@@ -175,32 +180,36 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   //   halfsize: res.assets.cube.halfsize,
   // });
 
-  for (let ti = 0; ti < 2; ti++) {
-    const timber = em.newEntity();
-    const timberMesh = cloneMesh(res.assets.timber_rib.mesh);
-    const timberState = res.woodAssets.timber_rib!;
-    em.ensureComponentOn(timber, RenderableConstructDef, timberMesh);
-    em.ensureComponentOn(timber, WoodStateDef, timberState);
-    em.ensureComponentOn(timber, ColorDef, vec3.clone(ENDESGA16.darkBrown));
-    // em.ensureComponentOn(timber, ColorDef, [0.1, 0.1, 0.1]);
-    const scale = 1 * Math.pow(0.8, ti);
-    const timberPos = vec3.clone(res.assets.timber_rib.center);
-    vec3.negate(timberPos, timberPos);
-    vec3.scale(timberPos, timberPos, scale);
-    timberPos[1] += 5;
-    em.ensureComponentOn(timber, PositionDef, timberPos);
-    // em.ensureComponentOn(timber, PositionDef, [0, 0, -4]);
-    em.ensureComponentOn(timber, RotationDef);
-    em.ensureComponentOn(timber, ScaleDef, [scale, scale, scale]);
-    em.ensureComponentOn(timber, WorldFrameDef);
-    em.ensureComponentOn(timber, ColliderDef, {
-      shape: "AABB",
-      solid: false,
-      aabb: res.assets.timber_rib.aabb,
-    });
-    const timberHealth = createWoodHealth(timberState);
-    em.ensureComponentOn(timber, WoodHealthDef, timberHealth);
-  }
+  const timber = em.newEntity();
+  const _timberMesh = mkTimberRib();
+  _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
+  const timberState = getBoardsFromMesh(_timberMesh);
+  unshareProvokingForWood(_timberMesh, timberState);
+  const timberMesh = normalizeMesh(_timberMesh);
+  em.ensureComponentOn(timber, RenderableConstructDef, timberMesh);
+  em.ensureComponentOn(timber, WoodStateDef, timberState);
+  em.ensureComponentOn(timber, ColorDef, vec3.clone(ENDESGA16.darkBrown));
+  // em.ensureComponentOn(timber, ColorDef, [0.1, 0.1, 0.1]);
+  // const scale = 1 * Math.pow(0.8, ti);
+  const scale = 1;
+  const timberAABB = getAABBFromMesh(timberMesh);
+  const timberPos = getCenterFromAABB(timberAABB);
+  // const timberPos = vec3.clone(res.assets.timber_rib.center);
+  vec3.negate(timberPos, timberPos);
+  vec3.scale(timberPos, timberPos, scale);
+  timberPos[1] += 5;
+  em.ensureComponentOn(timber, PositionDef, timberPos);
+  // em.ensureComponentOn(timber, PositionDef, [0, 0, -4]);
+  em.ensureComponentOn(timber, RotationDef);
+  em.ensureComponentOn(timber, ScaleDef, [scale, scale, scale]);
+  em.ensureComponentOn(timber, WorldFrameDef);
+  em.ensureComponentOn(timber, ColliderDef, {
+    shape: "AABB",
+    solid: false,
+    aabb: timberAABB,
+  });
+  const timberHealth = createWoodHealth(timberState);
+  em.ensureComponentOn(timber, WoodHealthDef, timberHealth);
   // randomizeMeshColors(timber);
   // const board = timberState.boards[0];
   // const timber2 = await em.whenEntityHas(timber, RenderableDef);

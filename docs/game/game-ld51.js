@@ -13,19 +13,18 @@ import { AngularVelocityDef, LinearVelocityDef } from "../physics/motion.js";
 import { WorldFrameDef } from "../physics/nonintersection.js";
 import { PhysicsParentDef, PositionDef, RotationDef, ScaleDef, } from "../physics/transform.js";
 import { PointLightDef } from "../render/lights.js";
-import { cloneMesh, transformMesh, } from "../render/mesh.js";
+import { cloneMesh, getAABBFromMesh, getCenterFromAABB, normalizeMesh, transformMesh, } from "../render/mesh.js";
 import { stdRenderPipeline } from "../render/pipelines/std-mesh.js";
 import { outlineRender } from "../render/pipelines/std-outline.js";
 import { postProcess } from "../render/pipelines/std-post.js";
 import { shadowPipelines } from "../render/pipelines/std-shadow.js";
-import { RendererDef, RenderableConstructDef, RenderableDef, RenderDataStdDef, } from "../render/renderer-ecs.js";
+import { RendererDef, RenderableConstructDef, RenderDataStdDef, } from "../render/renderer-ecs.js";
 import { tempMat4 } from "../temp-pool.js";
 import { assert } from "../test.js";
 import { TimeDef } from "../time.js";
-import { createWoodHealth, SplinterParticleDef, WoodAssetsDef, WoodHealthDef, WoodStateDef, } from "../wood.js";
-import { AssetsDef, } from "./assets.js";
+import { createWoodHealth, getBoardsFromMesh, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, } from "../wood.js";
+import { AssetsDef, mkTimberRib, } from "./assets.js";
 import { fireBullet } from "./bullet.js";
-import { GlobalCursor3dDef } from "./cursor.js";
 import { createGhost } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
 // TODO(@darzu): HACK. we need a better way to programmatically create sandbox games
@@ -33,7 +32,10 @@ export const sandboxSystems = [];
 export async function initLD51Game(em, hosting) {
     const camera = em.addSingletonComponent(CameraDef);
     camera.fov = Math.PI * 0.5;
-    const res = await em.whenResources(AssetsDef, WoodAssetsDef, GlobalCursor3dDef, RendererDef);
+    const res = await em.whenResources(AssetsDef, 
+    // WoodAssetsDef,
+    // GlobalCursor3dDef,
+    RendererDef);
     res.renderer.pipelines = [
         ...shadowPipelines,
         stdRenderPipeline,
@@ -59,9 +61,8 @@ export async function initLD51Game(em, hosting) {
     // g.controllable.modes.canPitch = true;
     ghost.controllable.speed *= 0.5;
     ghost.controllable.sprintMul = 10;
-    const c = res.globalCursor3d.cursor();
-    if (RenderableDef.isOn(c))
-        c.renderable.enabled = false;
+    // const c = res.globalCursor3d.cursor()!;
+    // if (RenderableDef.isOn(c)) c.renderable.enabled = false;
     const ground = em.newEntity();
     const groundMesh = cloneMesh(res.assets.hex.mesh);
     transformMesh(groundMesh, mat4.fromRotationTranslationScale(tempMat4(), quat.IDENTITY, [0, -2, 0], [20, 2, 20]));
@@ -110,32 +111,36 @@ export async function initLD51Game(em, hosting) {
     //   center: res.assets.cube.center,
     //   halfsize: res.assets.cube.halfsize,
     // });
-    for (let ti = 0; ti < 2; ti++) {
-        const timber = em.newEntity();
-        const timberMesh = cloneMesh(res.assets.timber_rib.mesh);
-        const timberState = res.woodAssets.timber_rib;
-        em.ensureComponentOn(timber, RenderableConstructDef, timberMesh);
-        em.ensureComponentOn(timber, WoodStateDef, timberState);
-        em.ensureComponentOn(timber, ColorDef, vec3.clone(ENDESGA16.darkBrown));
-        // em.ensureComponentOn(timber, ColorDef, [0.1, 0.1, 0.1]);
-        const scale = 1 * Math.pow(0.8, ti);
-        const timberPos = vec3.clone(res.assets.timber_rib.center);
-        vec3.negate(timberPos, timberPos);
-        vec3.scale(timberPos, timberPos, scale);
-        timberPos[1] += 5;
-        em.ensureComponentOn(timber, PositionDef, timberPos);
-        // em.ensureComponentOn(timber, PositionDef, [0, 0, -4]);
-        em.ensureComponentOn(timber, RotationDef);
-        em.ensureComponentOn(timber, ScaleDef, [scale, scale, scale]);
-        em.ensureComponentOn(timber, WorldFrameDef);
-        em.ensureComponentOn(timber, ColliderDef, {
-            shape: "AABB",
-            solid: false,
-            aabb: res.assets.timber_rib.aabb,
-        });
-        const timberHealth = createWoodHealth(timberState);
-        em.ensureComponentOn(timber, WoodHealthDef, timberHealth);
-    }
+    const timber = em.newEntity();
+    const _timberMesh = mkTimberRib();
+    _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
+    const timberState = getBoardsFromMesh(_timberMesh);
+    unshareProvokingForWood(_timberMesh, timberState);
+    const timberMesh = normalizeMesh(_timberMesh);
+    em.ensureComponentOn(timber, RenderableConstructDef, timberMesh);
+    em.ensureComponentOn(timber, WoodStateDef, timberState);
+    em.ensureComponentOn(timber, ColorDef, vec3.clone(ENDESGA16.darkBrown));
+    // em.ensureComponentOn(timber, ColorDef, [0.1, 0.1, 0.1]);
+    // const scale = 1 * Math.pow(0.8, ti);
+    const scale = 1;
+    const timberAABB = getAABBFromMesh(timberMesh);
+    const timberPos = getCenterFromAABB(timberAABB);
+    // const timberPos = vec3.clone(res.assets.timber_rib.center);
+    vec3.negate(timberPos, timberPos);
+    vec3.scale(timberPos, timberPos, scale);
+    timberPos[1] += 5;
+    em.ensureComponentOn(timber, PositionDef, timberPos);
+    // em.ensureComponentOn(timber, PositionDef, [0, 0, -4]);
+    em.ensureComponentOn(timber, RotationDef);
+    em.ensureComponentOn(timber, ScaleDef, [scale, scale, scale]);
+    em.ensureComponentOn(timber, WorldFrameDef);
+    em.ensureComponentOn(timber, ColliderDef, {
+        shape: "AABB",
+        solid: false,
+        aabb: timberAABB,
+    });
+    const timberHealth = createWoodHealth(timberState);
+    em.ensureComponentOn(timber, WoodHealthDef, timberHealth);
     // randomizeMeshColors(timber);
     // const board = timberState.boards[0];
     // const timber2 = await em.whenEntityHas(timber, RenderableDef);

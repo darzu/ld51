@@ -1,12 +1,12 @@
 import { EM } from "../entity-manager.js";
-import { mat4, quat, vec2, vec3 } from "../gl-matrix.js";
+import { mat4, quat, vec3 } from "../gl-matrix.js";
 import { importObj, isParseError } from "../import_obj.js";
-import { cloneMesh, getAABBFromMesh, getCenterFromAABB, getHalfsizeFromAABB, getMeshAsGrid, mapMeshPositions, mergeMeshes, normalizeMesh, scaleMesh, scaleMesh3, transformMesh, validateMesh, } from "../render/mesh.js";
+import { cloneMesh, getAABBFromMesh, getCenterFromAABB, getHalfsizeFromAABB, mapMeshPositions, mergeMeshes, normalizeMesh, scaleMesh, scaleMesh3, transformMesh, validateMesh, } from "../render/mesh.js";
 import { RendererDef } from "../render/renderer-ecs.js";
 import { assert } from "../test.js";
 import { objMap } from "../util.js";
 import { getText } from "../webget.js";
-import { computeTriangleNormal, farthestPointInDir, normalizeVec2s, uintToVec3unorm, vec3Reverse, vec4Reverse, } from "../utils-3d.js";
+import { farthestPointInDir, uintToVec3unorm, vec3Reverse, vec4Reverse, } from "../utils-3d.js";
 import { onInit } from "../init.js";
 import { VERBOSE_LOG } from "../flags.js";
 import { createTimberBuilder, getBoardsFromMesh, unshareProvokingForWood, WoodAssetsDef, } from "../wood.js";
@@ -20,7 +20,7 @@ const DEFAULT_ASSET_PATH = "/assets/";
 const BACKUP_ASSET_PATH = "http://sprig.land/assets/";
 const RemoteMeshes = {
     ship: "barge.sprig.obj",
-    ship_fangs: "enemy_ship_fangs.sprig.obj",
+    // ship_fangs: "enemy_ship_fangs.sprig.obj",
     ball: "ball.sprig.obj",
     pick: "pick.sprig.obj",
     spaceore: "spaceore.sprig.obj",
@@ -34,7 +34,7 @@ const RemoteMeshes = {
     grappleGunUnloaded: "grapple-gun-unloaded.sprig.obj",
     rudder: "rudder.sprig.obj",
     // TODO(@darzu): including hyperspace-ocean makes load time ~100ms slower :/
-    ocean: "hyperspace-ocean.sprig.obj",
+    // ocean: "hyperspace-ocean.sprig.obj",
     // ocean: "rudder.sprig.obj",
 };
 const RemoteMesheSets = {
@@ -57,8 +57,8 @@ const MeshTransforms = {
     grappleGunUnloaded: mat4.fromScaling(mat4.create(), [0.5, 0.5, 0.5]),
     grappleHook: mat4.fromScaling(mat4.create(), [0.5, 0.5, 0.5]),
     rudder: mat4.translate(mat4.create(), mat4.fromYRotation(mat4.create(), -Math.PI * 0.5), vec3.fromValues(-5, 0, 0)),
-    ocean: mat4.fromScaling(mat4.create(), [2, 2, 2]),
-    ship_fangs: mat4.fromScaling(mat4.create(), [3, 3, 3]),
+    // ocean: mat4.fromScaling(mat4.create(), [2, 2, 2]),
+    // ship_fangs: mat4.fromScaling(mat4.create(), [3, 3, 3]),
     ld51_cannon: mat4.fromRotationTranslationScale(mat4.create(), quat.rotateX(quat.create(), quat.IDENTITY, Math.PI * -0.5), [0, 0, 0], [0.8, 0.8, 0.8]),
 };
 // TODO(@darzu): these sort of hacky offsets are a pain to deal with. It'd be
@@ -69,24 +69,24 @@ const blackoutColor = (m) => {
     return m;
 };
 const MeshModify = {
-    ship_fangs: (m) => {
-        var _a;
-        // m.colors = m.colors.map((c) => [0.2, 0.2, 0.2]);
-        m.surfaceIds = m.colors.map((_, i) => i);
-        // console.log(`
-        // Fang ship has:
-        // ${m.tri.length} tris
-        // ${m.quad.length} quads
-        // `);
-        // m = debugBoardSystem(m);
-        // TODO(@darzu): call getBoardsFromMesh,
-        //    then move this data into some resource to be accessed later in an entities lifecycle
-        const woodState = getBoardsFromMesh(m);
-        unshareProvokingForWood(m, woodState);
-        const woodAssets = (_a = EM.getResource(WoodAssetsDef)) !== null && _a !== void 0 ? _a : EM.addSingletonComponent(WoodAssetsDef);
-        woodAssets["ship_fangs"] = woodState;
-        return m;
-    },
+    // ship_fangs: (m) => {
+    //   // m.colors = m.colors.map((c) => [0.2, 0.2, 0.2]);
+    //   m.surfaceIds = m.colors.map((_, i) => i);
+    //   // console.log(`
+    //   // Fang ship has:
+    //   // ${m.tri.length} tris
+    //   // ${m.quad.length} quads
+    //   // `);
+    //   // m = debugBoardSystem(m);
+    //   // TODO(@darzu): call getBoardsFromMesh,
+    //   //    then move this data into some resource to be accessed later in an entities lifecycle
+    //   const woodState = getBoardsFromMesh(m);
+    //   unshareProvokingForWood(m, woodState);
+    //   const woodAssets: WoodAssets =
+    //     EM.getResource(WoodAssetsDef) ?? EM.addSingletonComponent(WoodAssetsDef);
+    //   woodAssets["ship_fangs"] = woodState;
+    //   return m;
+    // },
     timber_rib: (m) => {
         var _a;
         // TODO(@darzu): de-duplicate w/ fang ship above
@@ -123,120 +123,122 @@ const MeshModify = {
         scaleMesh(m, 3);
         return m;
     },
-    ocean: (m) => {
-        // TODO(@darzu): extract out all this setUV stuff.
-        // reduce duplicate positions
-        // console.log("OCEAN");
-        // console.dir(m);
-        // m = deduplicateVertices(m);
-        // console.dir(m);
-        // TODO(@darzu): do we want convexity highlighting on the ocean?
-        m.surfaceIds = m.quad.map((_, i) => i);
-        // TODO(@darzu): generate UVs for the ocean
-        const minX = m.pos.reduce((p, n) => (n[0] < p ? n[0] : p), Infinity);
-        const maxX = m.pos.reduce((p, n) => (n[0] > p ? n[0] : p), -Infinity);
-        const minZ = m.pos.reduce((p, n) => (n[2] < p ? n[2] : p), Infinity);
-        const maxZ = m.pos.reduce((p, n) => (n[2] > p ? n[2] : p), -Infinity);
-        // m.uvs = m.pos.map(
-        //   (p, i) =>
-        //     vec2.fromValues(
-        //       mathMap(p[0], minX, maxX, 0, 1),
-        //       mathMap(p[2], minZ, maxZ, 0, 1)
-        //     )
-        //   // vec2.fromValues(i / m.pos.length, 0)
-        //   // vec2.fromValues(0.5, 0.5)
-        // );
-        // TODO(@darzu): DBG
-        // try {
-        //   console.log("getMeshAsGrid(ocean)");
-        const { coords, grid } = getMeshAsGrid(m);
-        //   console.log("getMeshAsGrid success!");
-        // } catch (e) {
-        //   console.log("getMeshAsGrid failed!");
-        //   console.error(e);
-        // }
-        const xLen = grid.length;
-        const yLen = grid[0].length;
-        // console.log(`xLen:${xLen},yLen:${yLen}`);
-        const uvs = m.pos.map((_, vi) => vec2.create());
-        m.uvs = uvs;
-        // setUV(Math.floor(xLen / 2), 0, [0, 1], [0, 0], true);
-        setUV(0, Math.floor(yLen / 2), [1, 0], [0, 0], true);
-        // TODO(@darzu): lots of little annoying issues happen when you go right to the texture edge
-        normalizeVec2s(uvs, 0 + 0.01, 1 - 0.01);
-        // TODO: should we compute tangents (and normals!) per vertex
-        // instead of per quad, for vertex displacement (e.g. waves)
-        // purposes?
-        //set tangents
-        m.tangents = m.pos.map(() => vec3.create());
-        m.normals = m.pos.map(() => vec3.create());
-        for (let xIndex = 0; xIndex < grid.length; xIndex++) {
-            for (let yIndex = 0; yIndex < grid[0].length; yIndex++) {
-                let normal;
-                let tangent;
-                if (xIndex + 1 < grid.length && yIndex + 1 < grid[0].length) {
-                    const pos = m.pos[grid[xIndex][yIndex]];
-                    const posNX = m.pos[grid[xIndex + 1][yIndex]];
-                    const posNY = m.pos[grid[xIndex][yIndex + 1]];
-                    normal = computeTriangleNormal(pos, posNX, posNY);
-                    tangent = vec3.sub(m.tangents[grid[xIndex][yIndex]], posNX, pos);
-                    vec3.normalize(tangent, tangent);
-                }
-                else if (xIndex + 1 >= grid.length) {
-                    normal = m.normals[grid[xIndex - 1][yIndex]];
-                    tangent = m.tangents[grid[xIndex - 1][yIndex]];
-                }
-                else if (yIndex + 1 >= grid[0].length) {
-                    normal = m.normals[grid[xIndex][yIndex - 1]];
-                    tangent = m.tangents[grid[xIndex][yIndex - 1]];
-                }
-                else {
-                    assert(false);
-                }
-                vec3.copy(m.normals[grid[xIndex][yIndex]], normal);
-                vec3.copy(m.tangents[grid[xIndex][yIndex]], tangent);
-            }
-        }
-        // console.dir(uvs);
-        // console.log(`
-        // X:
-        // ${max(uvs.map((uv) => uv[0]))}
-        // ${min(uvs.map((uv) => uv[0]))}
-        // Y:
-        // ${max(uvs.map((uv) => uv[1]))}
-        // ${min(uvs.map((uv) => uv[1]))}
-        // `);
-        function setUV(x, y, dir, currDist, branch) {
-            // console.log(`setUV ${x} ${y} ${dir} ${currDist} ${branch}`);
-            // set this UV
-            const vi = grid[x][y];
-            vec2.copy(uvs[vi], currDist);
-            // branch?
-            if (branch) {
-                setUV(x, y, [dir[1], dir[0]], currDist, false);
-                setUV(x, y, [-dir[1], -dir[0]], currDist, false);
-            }
-            // continue forward?
-            const nX = x + dir[0];
-            const nY = y + dir[1];
-            if (nX < 0 || xLen <= nX || nY < 0 || yLen <= nY)
-                return;
-            const nVi = grid[nX][nY];
-            const delta = vec3.dist(m.pos[vi], m.pos[nVi]);
-            const newDist = [
-                currDist[0] + dir[0] * delta,
-                currDist[1] + dir[1] * delta,
-            ];
-            setUV(nX, nY, dir, newDist, branch);
-        }
-        // console.dir({
-        //   uvMin: [min(m.uvs.map((a) => a[0])), min(m.uvs.map((a) => a[1]))],
-        //   uvMax: [max(m.uvs.map((a) => a[0])), max(m.uvs.map((a) => a[1]))],
-        // });
-        // console.dir(m.uvs);
-        // console.dir({ minX, maxX, minZ, maxZ });
-        return m;
-    },
+    // ocean: (m) => {
+    //   // TODO(@darzu): extract out all this setUV stuff.
+    //   // reduce duplicate positions
+    //   // console.log("OCEAN");
+    //   // console.dir(m);
+    //   // m = deduplicateVertices(m);
+    //   // console.dir(m);
+    //   // TODO(@darzu): do we want convexity highlighting on the ocean?
+    //   m.surfaceIds = m.quad.map((_, i) => i);
+    //   // TODO(@darzu): generate UVs for the ocean
+    //   const minX = m.pos.reduce((p, n) => (n[0] < p ? n[0] : p), Infinity);
+    //   const maxX = m.pos.reduce((p, n) => (n[0] > p ? n[0] : p), -Infinity);
+    //   const minZ = m.pos.reduce((p, n) => (n[2] < p ? n[2] : p), Infinity);
+    //   const maxZ = m.pos.reduce((p, n) => (n[2] > p ? n[2] : p), -Infinity);
+    //   // m.uvs = m.pos.map(
+    //   //   (p, i) =>
+    //   //     vec2.fromValues(
+    //   //       mathMap(p[0], minX, maxX, 0, 1),
+    //   //       mathMap(p[2], minZ, maxZ, 0, 1)
+    //   //     )
+    //   //   // vec2.fromValues(i / m.pos.length, 0)
+    //   //   // vec2.fromValues(0.5, 0.5)
+    //   // );
+    //   // TODO(@darzu): DBG
+    //   // try {
+    //   //   console.log("getMeshAsGrid(ocean)");
+    //   const { coords, grid } = getMeshAsGrid(m);
+    //   //   console.log("getMeshAsGrid success!");
+    //   // } catch (e) {
+    //   //   console.log("getMeshAsGrid failed!");
+    //   //   console.error(e);
+    //   // }
+    //   const xLen = grid.length;
+    //   const yLen = grid[0].length;
+    //   // console.log(`xLen:${xLen},yLen:${yLen}`);
+    //   const uvs = m.pos.map((_, vi) => vec2.create());
+    //   m.uvs = uvs;
+    //   // setUV(Math.floor(xLen / 2), 0, [0, 1], [0, 0], true);
+    //   setUV(0, Math.floor(yLen / 2), [1, 0], [0, 0], true);
+    //   // TODO(@darzu): lots of little annoying issues happen when you go right to the texture edge
+    //   normalizeVec2s(uvs, 0 + 0.01, 1 - 0.01);
+    //   // TODO: should we compute tangents (and normals!) per vertex
+    //   // instead of per quad, for vertex displacement (e.g. waves)
+    //   // purposes?
+    //   //set tangents
+    //   m.tangents = m.pos.map(() => vec3.create());
+    //   m.normals = m.pos.map(() => vec3.create());
+    //   for (let xIndex = 0; xIndex < grid.length; xIndex++) {
+    //     for (let yIndex = 0; yIndex < grid[0].length; yIndex++) {
+    //       let normal: vec3;
+    //       let tangent: vec3;
+    //       if (xIndex + 1 < grid.length && yIndex + 1 < grid[0].length) {
+    //         const pos = m.pos[grid[xIndex][yIndex]];
+    //         const posNX = m.pos[grid[xIndex + 1][yIndex]];
+    //         const posNY = m.pos[grid[xIndex][yIndex + 1]];
+    //         normal = computeTriangleNormal(pos, posNX, posNY);
+    //         tangent = vec3.sub(m.tangents[grid[xIndex][yIndex]], posNX, pos);
+    //         vec3.normalize(tangent, tangent);
+    //       } else if (xIndex + 1 >= grid.length) {
+    //         normal = m.normals[grid[xIndex - 1][yIndex]];
+    //         tangent = m.tangents[grid[xIndex - 1][yIndex]];
+    //       } else if (yIndex + 1 >= grid[0].length) {
+    //         normal = m.normals[grid[xIndex][yIndex - 1]];
+    //         tangent = m.tangents[grid[xIndex][yIndex - 1]];
+    //       } else {
+    //         assert(false);
+    //       }
+    //       vec3.copy(m.normals[grid[xIndex][yIndex]], normal);
+    //       vec3.copy(m.tangents[grid[xIndex][yIndex]], tangent);
+    //     }
+    //   }
+    //   // console.dir(uvs);
+    //   // console.log(`
+    //   // X:
+    //   // ${max(uvs.map((uv) => uv[0]))}
+    //   // ${min(uvs.map((uv) => uv[0]))}
+    //   // Y:
+    //   // ${max(uvs.map((uv) => uv[1]))}
+    //   // ${min(uvs.map((uv) => uv[1]))}
+    //   // `);
+    //   function setUV(
+    //     x: number,
+    //     y: number,
+    //     dir: vec2,
+    //     currDist: vec2,
+    //     branch: boolean
+    //   ) {
+    //     // console.log(`setUV ${x} ${y} ${dir} ${currDist} ${branch}`);
+    //     // set this UV
+    //     const vi = grid[x][y];
+    //     vec2.copy(uvs[vi], currDist);
+    //     // branch?
+    //     if (branch) {
+    //       setUV(x, y, [dir[1], dir[0]], currDist, false);
+    //       setUV(x, y, [-dir[1], -dir[0]], currDist, false);
+    //     }
+    //     // continue forward?
+    //     const nX = x + dir[0];
+    //     const nY = y + dir[1];
+    //     if (nX < 0 || xLen <= nX || nY < 0 || yLen <= nY) return;
+    //     const nVi = grid[nX][nY];
+    //     const delta = vec3.dist(m.pos[vi], m.pos[nVi]);
+    //     const newDist: vec2 = [
+    //       currDist[0] + dir[0] * delta,
+    //       currDist[1] + dir[1] * delta,
+    //     ];
+    //     setUV(nX, nY, dir, newDist, branch);
+    //   }
+    //   // console.dir({
+    //   //   uvMin: [min(m.uvs.map((a) => a[0])), min(m.uvs.map((a) => a[1]))],
+    //   //   uvMax: [max(m.uvs.map((a) => a[0])), max(m.uvs.map((a) => a[1]))],
+    //   // });
+    //   // console.dir(m.uvs);
+    //   // console.dir({ minX, maxX, minZ, maxZ });
+    //   return m;
+    // },
 };
 // which triangles belong to which faces
 // TODO(@darzu): should these be standardized for all meshes?
@@ -307,7 +309,7 @@ export const CUBE_MESH = {
         BLACK,
     ],
 };
-const mkTimberRib = () => {
+export const mkTimberRib = () => {
     const b = createTimberBuilder();
     b.addLoopVerts();
     b.addEndQuad(true);
@@ -684,6 +686,9 @@ scaleMesh3(BOAT_MESH, [10, 0.6, 5]);
 const BULLET_MESH = cloneMesh(CUBE_MESH);
 scaleMesh(BULLET_MESH, 0.3);
 export const LocalMeshes = {
+    // TODO(@darzu): LD51 PERF HACKS:
+    ship_fangs: () => CUBE_MESH,
+    ocean: () => CUBE_MESH,
     cube: () => CUBE_MESH,
     plane: () => PLANE_MESH,
     tetra: () => TETRA_MESH,
