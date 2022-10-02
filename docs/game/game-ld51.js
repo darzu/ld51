@@ -659,6 +659,9 @@ export async function initLD51Game(em, hosting) {
             const elapsedPer = Math.min(Math.ceil((elapsed / spawnTimer) * 10), 10);
             res.text.upperText = `Hull %${healthPercent.toFixed(1)}, Kills ${pirateKills}, !${elapsedPer}`;
             res.text.lowerText = `WASD+Shift; left click to pick up cannon balls and fire the cannons. Survive! They attack like clockwork.`;
+            if (healthPercent < 20) {
+                alert(`You've been sunk! You killed ${pirateKills} and lasted ${(res.time.time / 1000).toFixed(1)} seconds. Thanks for playing! Refresh to try again.`);
+            }
         }, "progressGame");
         sandboxSystems.push("progressGame");
     }
