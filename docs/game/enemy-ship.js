@@ -12,7 +12,7 @@ import { AssetsDef } from "./assets.js";
 import { AngularVelocityDef, LinearVelocityDef } from "../physics/motion.js";
 import { MotionSmoothingDef } from "../motion-smoothing.js";
 import { PhysicsResultsDef, WorldFrameDef, } from "../physics/nonintersection.js";
-import { BulletDef, fireBullet } from "./bullet.js";
+import { BulletDef } from "./bullet.js";
 import { DeletedDef, OnDeleteDef } from "../delete.js";
 import { LifetimeDef } from "./lifetime.js";
 import { PlayerShipLocalDef } from "./player-ship.js";
@@ -201,7 +201,13 @@ export function registerEnemyShipSystems(em) {
                     // const rot = quat.create();
                     // quat.rotateY(rot, cannon.world.rotation, Math.PI * 0.5);
                     const bulletSpeed = jitter(0.025) + 0.075;
-                    fireBullet(em, 2, cannon.world.position, cannon.world.rotation, bulletSpeed);
+                    // fireBullet(
+                    //   em,
+                    //   2,
+                    //   cannon.world.position,
+                    //   cannon.world.rotation,
+                    //   bulletSpeed
+                    // );
                 }
             }
         }

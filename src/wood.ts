@@ -114,11 +114,12 @@ onInit((em) => {
             )
             .filter((b) => {
               // TODO(@darzu): check authority and team
-              return b;
+              return b && b.bullet.health > 0;
             });
-          for (let ball of balls) {
+          for (let _ball of balls) {
+            const ball = _ball!;
             // TODO(@darzu): move a bunch of the below into physic system features!
-            assert(ball?.collider.shape === "AABB");
+            assert(ball.collider.shape === "AABB");
             copyAABB(ballAABBWorld, ball.collider.aabb);
             transformAABB(ballAABBWorld, ball.world.transform);
             // TODO(@darzu): this sphere should live elsewhere..
@@ -128,7 +129,9 @@ onInit((em) => {
             };
 
             w.woodState.boards.forEach((board, boardIdx) => {
+              if (ball.bullet.health <= 0) return;
               board.forEach((seg, segIdx) => {
+                if (ball.bullet.health <= 0) return;
                 // TODO(@darzu):
                 copyAABB(segAABBWorld, seg.localAABB);
                 transformAABB(segAABBWorld, w.world.transform);
@@ -156,7 +159,12 @@ onInit((em) => {
                       for (let qi of seg.quadSideIdxs) {
                         mesh.colors[qi] = [0, 1, 0];
                       }
-                    w.woodHealth.boards[boardIdx][segIdx].health -= 1.0;
+                    // TODO(@darzu): cannon ball health stuff!
+                    const woodHealth = w.woodHealth.boards[boardIdx][segIdx];
+                    const dmg =
+                      Math.min(woodHealth.health, ball.bullet.health) + 0.001;
+                    woodHealth.health -= dmg;
+                    ball.bullet.health -= dmg;
                     // w.woodHealth.boards[boardIdx][segIdx].health -= 0.2;
                   }
                 }

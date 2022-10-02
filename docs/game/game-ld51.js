@@ -27,6 +27,28 @@ import { AssetsDef, BLACK } from "./assets.js";
 import { fireBullet } from "./bullet.js";
 import { createGhost } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
+/*
+  TODO:
+  [ ] Player can walk on ship
+  [ ] Player can fire cannon
+  [ ] Show controls, describe objective
+  [ ] PERF: Splinters pool
+  [ ] PERF: splinter end pool
+  [ ] Planks can be repaired
+  [ ] Can destroy enemies
+  [x] cannon ball can't destroy everything
+  [ ] cannon balls explode
+  [ ] cannon balls drop and can be picked up
+  [ ] Enemies spawn
+  [ ] PERF: pool enemy ships
+  [ ] PERF: board AABB check
+  [ ] ship total health check
+  [ ] Sound!
+
+  [ ] change wood colors
+  [ ] adjust ship size
+  [ ] add dark ends
+*/
 // TODO(@darzu): HACK. we need a better way to programmatically create sandbox games
 export const sandboxSystems = [];
 export async function initLD51Game(em, hosting) {
@@ -241,20 +263,6 @@ export async function initLD51Game(em, hosting) {
     const timberHealth = createWoodHealth(timberState);
     em.ensureComponentOn(timber, WoodHealthDef, timberHealth);
     // CANNONS
-    /*
-    TO BE A GAME, TODO:
-    Player can walk on ship
-    Player can fire cannon
-    Show controls, describe objective
-    PERF: Splinters pool
-    PERF: splinter end pool
-    Planks can be repaired
-    Can destroy enemies
-    cannon ball can't destroy everything
-    Enemies spawn
-    PERF: pool enemy ships
-    change wood colors
-    */
     const realFloorHeight = timberPos[1] + floorHeight;
     const cannon = em.newEntity();
     em.ensureComponentOn(cannon, RenderableConstructDef, res.assets.ld51_cannon.proto);
@@ -308,7 +316,8 @@ export async function initLD51Game(em, hosting) {
             const firePos = worldSphere.org;
             const fireDir = quat.create();
             quat.copy(fireDir, ghost.world.rotation);
-            fireBullet(em, 1, firePos, fireDir, 0.05, 0.02, 3);
+            const ballHealth = 2.0;
+            fireBullet(em, 1, firePos, fireDir, 0.05, 0.02, 3, ballHealth);
         }
     }, "runLD51Timber");
     sandboxSystems.push("runLD51Timber");
@@ -423,7 +432,7 @@ export function appendTimberRib(b, ccw) {
     // console.dir(b.mesh);
     return b.mesh;
 }
-const startDelay = 5000;
+const startDelay = 1000;
 export const PiratePlatformDef = EM.defineComponent("piratePlatform", (cannon, tiltPeriod, tiltTimer) => {
     return {
         cannon: createRef(cannon),
@@ -444,7 +453,7 @@ async function startPirates() {
         const p = await spawnPirate();
         rotatePiratePlatform(p, i * ((2 * Math.PI) / numPirates));
     }
-    const tenSeconds = 1000 * 10; // TODO(@darzu): make 10 seconds
+    const tenSeconds = 1000 * 3; // TODO(@darzu): make 10 seconds
     const fireStagger = 150;
     // const tiltPeriod = 5700;
     em.registerSystem([PiratePlatformDef, PositionDef, RotationDef], [TimeDef], (ps, res) => {
@@ -476,7 +485,8 @@ async function startPirates() {
                 p.piratePlatform.lastFire = myTime;
                 if (WorldFrameDef.isOn(c)) {
                     console.log(`pirate fire`);
-                    fireBullet(em, 2, c.world.position, c.world.rotation, 0.05, 0.02, 3);
+                    const ballHealth = 2.0;
+                    fireBullet(em, 2, c.world.position, c.world.rotation, 0.05, 0.02, 3, ballHealth);
                 }
             }
         }
@@ -485,6 +495,7 @@ async function startPirates() {
 }
 async function spawnPirate() {
     const em = EM;
+    const initialPitch = Math.PI * 0.06;
     const res = await em.whenResources(AssetsDef, RendererDef);
     const platform = em.newEntity();
     const cannon = em.newEntity();
@@ -501,7 +512,7 @@ async function spawnPirate() {
     em.ensureComponentOn(platform, PiratePlatformDef, cannon, tiltPeriod, tiltTimer);
     em.ensureComponentOn(cannon, RenderableConstructDef, res.assets.ld51_cannon.proto);
     em.ensureComponentOn(cannon, PositionDef, [0, 2, 0]);
-    em.ensureComponentOn(cannon, RotationDef, quat.rotateX(quat.create(), quat.IDENTITY, Math.PI * 0.03));
+    em.ensureComponentOn(cannon, RotationDef, quat.rotateX(quat.create(), quat.IDENTITY, initialPitch));
     em.ensureComponentOn(cannon, PhysicsParentDef, platform.id);
     em.ensureComponentOn(cannon, ColorDef, vec3.clone(ENDESGA16.darkGray));
     // TODO(@darzu): HACK!

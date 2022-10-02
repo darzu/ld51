@@ -7,7 +7,6 @@ import { PhysicsParentDef, PositionDef } from "../physics/transform.js";
 import { ColliderDef } from "../physics/collider.js";
 import { AuthorityDef, MeDef } from "../net/components.js";
 import { DetectedEventsDef, eventWizard } from "../net/events.js";
-import { fireBullet } from "./bullet.js";
 import { InRangeDef } from "./interact.js";
 import { LocalPlayerDef, PlayerDef } from "./player.js";
 import { AssetsDef } from "./assets.js";
@@ -80,7 +79,7 @@ export function registerCannonSystems(em) {
             const firePos = vec3.create();
             vec3.transformQuat(firePos, firePos, fireDir);
             vec3.add(firePos, firePos, cannon.world.position);
-            fireBullet(EM, 1, firePos, fireDir, 0.1);
+            // fireBullet(EM, 1, firePos, fireDir, 0.1);
         }
         // but everyone resets the cooldown and plays sound effects
         cannon.cannonLocal.fireMs = cannon.cannonLocal.fireDelayMs;

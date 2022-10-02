@@ -12,18 +12,21 @@ import { MotionSmoothingDef } from "../motion-smoothing.js";
 import { LifetimeDef } from "./lifetime.js";
 import { TimeDef } from "../time.js";
 import { GravityDef } from "./gravity.js";
-export const BulletDef = EM.defineComponent("bullet", (team) => {
+import { ENDESGA16 } from "../color/palettes.js";
+export const BulletDef = EM.defineComponent("bullet", (team, health) => {
     return {
         team,
+        health,
     };
 });
-export const BulletConstructDef = EM.defineComponent("bulletConstruct", (loc, vel, angVel, team, gravity) => {
+export const BulletConstructDef = EM.defineComponent("bulletConstruct", (loc, vel, angVel, team, gravity, health) => {
     return {
         location: loc !== null && loc !== void 0 ? loc : vec3.fromValues(0, 0, 0),
         linearVelocity: vel !== null && vel !== void 0 ? vel : vec3.fromValues(0, 1, 0),
         angularVelocity: angVel !== null && angVel !== void 0 ? angVel : vec3.fromValues(0, 0, 0),
         team,
         gravity: gravity !== null && gravity !== void 0 ? gravity : 0,
+        health,
     };
 });
 EM.registerSerializerPair(BulletConstructDef, (c, writer) => {
@@ -46,11 +49,17 @@ function createBullet(em, e, pid, assets) {
     em.ensureComponent(e.id, RotationDef);
     em.ensureComponent(e.id, LinearVelocityDef, props.linearVelocity);
     em.ensureComponent(e.id, AngularVelocityDef, props.angularVelocity);
-    em.ensureComponent(e.id, ColorDef, BULLET_COLOR);
+    em.ensureComponentOn(e, ColorDef, vec3.clone(BULLET_COLOR));
+    if (props.team === 1) {
+        vec3.copy(e.color, ENDESGA16.deepGreen);
+    }
+    else if (props.team === 2) {
+        vec3.copy(e.color, ENDESGA16.deepBrown);
+    }
     em.ensureComponent(e.id, MotionSmoothingDef);
     em.ensureComponent(e.id, RenderableConstructDef, assets.ball.proto);
     em.ensureComponent(e.id, AuthorityDef, pid);
-    em.ensureComponent(e.id, BulletDef, props.team);
+    em.ensureComponent(e.id, BulletDef, props.team, props.health);
     em.ensureComponent(e.id, ColliderDef, {
         shape: "AABB",
         solid: false,
@@ -78,13 +87,16 @@ export function registerBulletUpdate(em) {
         // }
     }, "updateBullets");
 }
-export function fireBullet(em, team, location, rotation, speed = 0.02, rotationSpeed = 0.02, gravity = 6) {
+export function fireBullet(em, team, location, rotation, speed, // = 0.02,
+rotationSpeed, // = 0.02,
+gravity, // = 6
+health) {
     let bulletAxis = vec3.fromValues(0, 0, -1);
     vec3.transformQuat(bulletAxis, bulletAxis, rotation);
     vec3.normalize(bulletAxis, bulletAxis);
     const linearVelocity = vec3.scale(vec3.create(), bulletAxis, speed);
     const angularVelocity = vec3.scale(vec3.create(), bulletAxis, rotationSpeed);
     const e = em.newEntity();
-    em.addComponent(e.id, BulletConstructDef, vec3.clone(location), linearVelocity, angularVelocity, team, gravity);
+    em.addComponent(e.id, BulletConstructDef, vec3.clone(location), linearVelocity, angularVelocity, team, gravity, health);
 }
 //# sourceMappingURL=bullet.js.map

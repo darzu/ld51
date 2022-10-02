@@ -75,6 +75,29 @@ import { GlobalCursor3dDef } from "./cursor.js";
 import { createGhost } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
 
+/*
+  TODO:
+  [ ] Player can walk on ship
+  [ ] Player can fire cannon
+  [ ] Show controls, describe objective
+  [ ] PERF: Splinters pool
+  [ ] PERF: splinter end pool 
+  [ ] Planks can be repaired
+  [ ] Can destroy enemies
+  [x] cannon ball can't destroy everything
+  [ ] cannon balls explode
+  [ ] cannon balls drop and can be picked up
+  [ ] Enemies spawn
+  [ ] PERF: pool enemy ships
+  [ ] PERF: board AABB check
+  [ ] ship total health check
+  [ ] Sound!
+
+  [ ] change wood colors
+  [ ] adjust ship size
+  [ ] add dark ends
+*/
+
 // TODO(@darzu): HACK. we need a better way to programmatically create sandbox games
 export const sandboxSystems: string[] = [];
 
@@ -326,20 +349,6 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   em.ensureComponentOn(timber, WoodHealthDef, timberHealth);
 
   // CANNONS
-  /*
-  TO BE A GAME, TODO:
-  Player can walk on ship
-  Player can fire cannon
-  Show controls, describe objective
-  PERF: Splinters pool
-  PERF: splinter end pool 
-  Planks can be repaired
-  Can destroy enemies
-  cannon ball can't destroy everything
-  Enemies spawn
-  PERF: pool enemy ships
-  change wood colors
-  */
   const realFloorHeight = timberPos[1] + floorHeight;
   const cannon = em.newEntity();
   em.ensureComponentOn(
@@ -416,7 +425,8 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
         const firePos = worldSphere.org;
         const fireDir = quat.create();
         quat.copy(fireDir, ghost.world.rotation);
-        fireBullet(em, 1, firePos, fireDir, 0.05, 0.02, 3);
+        const ballHealth = 2.0;
+        fireBullet(em, 1, firePos, fireDir, 0.05, 0.02, 3, ballHealth);
       }
     },
     "runLD51Timber"
@@ -580,7 +590,7 @@ export function appendTimberRib(b: TimberBuilder, ccw: boolean) {
   return b.mesh;
 }
 
-const startDelay = 5000;
+const startDelay = 1000;
 
 export const PiratePlatformDef = EM.defineComponent(
   "piratePlatform",
@@ -613,7 +623,7 @@ async function startPirates() {
     rotatePiratePlatform(p, i * ((2 * Math.PI) / numPirates));
   }
 
-  const tenSeconds = 1000 * 10; // TODO(@darzu): make 10 seconds
+  const tenSeconds = 1000 * 3; // TODO(@darzu): make 10 seconds
   const fireStagger = 150;
   // const tiltPeriod = 5700;
   em.registerSystem(
@@ -654,6 +664,7 @@ async function startPirates() {
           p.piratePlatform.lastFire = myTime;
           if (WorldFrameDef.isOn(c)) {
             console.log(`pirate fire`);
+            const ballHealth = 2.0;
             fireBullet(
               em,
               2,
@@ -661,7 +672,8 @@ async function startPirates() {
               c.world.rotation,
               0.05,
               0.02,
-              3
+              3,
+              ballHealth
             );
           }
         }
@@ -674,6 +686,8 @@ async function startPirates() {
 
 async function spawnPirate() {
   const em: EntityManager = EM;
+
+  const initialPitch = Math.PI * 0.06;
 
   const res = await em.whenResources(AssetsDef, RendererDef);
 
@@ -716,7 +730,7 @@ async function spawnPirate() {
   em.ensureComponentOn(
     cannon,
     RotationDef,
-    quat.rotateX(quat.create(), quat.IDENTITY, Math.PI * 0.03)
+    quat.rotateX(quat.create(), quat.IDENTITY, initialPitch)
   );
   em.ensureComponentOn(cannon, PhysicsParentDef, platform.id);
   em.ensureComponentOn(cannon, ColorDef, vec3.clone(ENDESGA16.darkGray));
