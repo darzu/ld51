@@ -11,7 +11,7 @@ import { MusicDef, randChordId } from "../music.js";
 import { createAABB, copyAABB, updateAABBWithPoint, aabbCenter, } from "../physics/broadphase.js";
 import { ColliderDef } from "../physics/collider.js";
 import { AngularVelocityDef, LinearVelocityDef } from "../physics/motion.js";
-import { WorldFrameDef } from "../physics/nonintersection.js";
+import { PhysicsResultsDef, WorldFrameDef, } from "../physics/nonintersection.js";
 import { PhysicsParentDef, PositionDef, RotationDef, ScaleDef, } from "../physics/transform.js";
 import { PointLightDef } from "../render/lights.js";
 import { cloneMesh, getAABBFromMesh, getHalfsizeFromAABB, normalizeMesh, scaleMesh3, transformMesh, } from "../render/mesh.js";
@@ -25,7 +25,7 @@ import { assert } from "../test.js";
 import { TimeDef } from "../time.js";
 import { createEmptyMesh, createTimberBuilder, createWoodHealth, getBoardsFromMesh, registerDestroyPirateHandler, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, } from "../wood.js";
 import { AssetsDef, BLACK } from "./assets.js";
-import { breakBullet, BulletDef, fireBullet } from "./bullet.js";
+import { breakBullet, BulletConstructDef, BulletDef, fireBullet, } from "./bullet.js";
 import { ControllableDef } from "./controllable.js";
 import { createGhost } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
@@ -388,6 +388,7 @@ export async function initLD51Game(em, hosting) {
     sandboxSystems.push("breakBullets");
     // Create player
     {
+        const ColWallDef = em.defineComponent("ColWall", () => ({}));
         // create ship bounds
         const colFloor = em.newEntity();
         const flAABB = {
@@ -409,6 +410,7 @@ export async function initLD51Game(em, hosting) {
             aabb: flAABB,
         });
         em.ensureComponentOn(colFloor, PositionDef);
+        em.ensureComponentOn(colFloor, ColWallDef);
         const colLeftWall = em.newEntity();
         em.ensureComponentOn(colLeftWall, ColliderDef, {
             shape: "AABB",
@@ -419,6 +421,7 @@ export async function initLD51Game(em, hosting) {
             },
         });
         em.ensureComponentOn(colLeftWall, PositionDef);
+        em.ensureComponentOn(colLeftWall, ColWallDef);
         const colRightWall = em.newEntity();
         em.ensureComponentOn(colRightWall, ColliderDef, {
             shape: "AABB",
@@ -429,6 +432,7 @@ export async function initLD51Game(em, hosting) {
             },
         });
         em.ensureComponentOn(colRightWall, PositionDef);
+        em.ensureComponentOn(colRightWall, ColWallDef);
         const colFrontWall = em.newEntity();
         em.ensureComponentOn(colFrontWall, ColliderDef, {
             shape: "AABB",
@@ -439,6 +443,7 @@ export async function initLD51Game(em, hosting) {
             },
         });
         em.ensureComponentOn(colFrontWall, PositionDef);
+        em.ensureComponentOn(colFrontWall, ColWallDef);
         const colBackWall = em.newEntity();
         em.ensureComponentOn(colBackWall, ColliderDef, {
             shape: "AABB",
@@ -449,6 +454,7 @@ export async function initLD51Game(em, hosting) {
             },
         });
         em.ensureComponentOn(colBackWall, PositionDef);
+        em.ensureComponentOn(colBackWall, ColWallDef);
         // debugVizAABB(colFloor);
         // debugVizAABB(colLeftWall);
         // debugVizAABB(colRightWall);
@@ -464,6 +470,46 @@ export async function initLD51Game(em, hosting) {
             transformMesh(mesh, mat4.fromTranslation(tempMat4(), center));
             em.ensureComponentOn(aabbEnt, RenderableConstructDef, mesh);
             em.ensureComponentOn(aabbEnt, ColorDef, vec3.clone(ENDESGA16.orange));
+        }
+        // BULLET VS COLLIDERS
+        {
+            const colLeftMid = aabbCenter(vec3.create(), colLeftWall.collider.aabb);
+            const colRightMid = aabbCenter(vec3.create(), colRightWall.collider.aabb);
+            const colFrontMid = aabbCenter(vec3.create(), colFrontWall.collider.aabb);
+            const colBackMid = aabbCenter(vec3.create(), colBackWall.collider.aabb);
+            em.registerSystem([BulletConstructDef, LinearVelocityDef, GravityDef], [PhysicsResultsDef], (es, res) => {
+                for (let b of es) {
+                    if (b.bulletConstruct.team !== 2)
+                        continue;
+                    const hits = res.physicsResults.collidesWith.get(b.id);
+                    if (hits) {
+                        const walls = hits
+                            .map((h) => em.findEntity(h, [ColWallDef, WorldFrameDef]))
+                            .filter((b) => {
+                            return b;
+                        });
+                        if (walls.length) {
+                            const targetSide = vec3.sqrDist(b.bulletConstruct.location, colRightMid) >
+                                vec3.sqrDist(b.bulletConstruct.location, colLeftMid)
+                                ? colRightWall
+                                : colLeftWall;
+                            const targetFrontBack = vec3.sqrDist(b.bulletConstruct.location, colFrontMid) >
+                                vec3.sqrDist(b.bulletConstruct.location, colBackMid)
+                                ? colFrontWall
+                                : colBackWall;
+                            for (let w of walls) {
+                                assert(w);
+                                if (w.id === targetSide.id || w.id === targetFrontBack.id) {
+                                    console.log("HIT FAR WALL!");
+                                    vec3.zero(b.linearVelocity);
+                                    vec3.zero(b.gravity);
+                                }
+                            }
+                        }
+                    }
+                }
+            }, "bulletBounce");
+            sandboxSystems.push("bulletBounce");
         }
         // TODO(@darzu): GHOST MODE
         const DBG_PLAYER = false;
@@ -692,7 +738,9 @@ async function startPirates() {
                 p.piratePlatform.lastFire = myTime;
                 if (WorldFrameDef.isOn(c)) {
                     console.log(`pirate fire`);
-                    const ballHealth = 2.0;
+                    // TODO(@darzu): DBG!!!!!
+                    const ballHealth = 20.0;
+                    // const ballHealth = 2.0;
                     fireBullet(em, 2, c.world.position, c.world.rotation, 0.05, 0.02, 3, ballHealth);
                 }
             }

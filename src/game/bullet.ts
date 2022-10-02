@@ -90,7 +90,7 @@ function createBullet(
 ) {
   if (FinishedDef.isOn(e)) return;
   const props = e.bulletConstruct;
-  em.ensureComponent(e.id, PositionDef, props.location);
+  em.ensureComponent(e.id, PositionDef, vec3.clone(props.location));
   em.ensureComponent(e.id, RotationDef);
   em.ensureComponent(e.id, LinearVelocityDef, props.linearVelocity);
   em.ensureComponent(e.id, AngularVelocityDef, props.angularVelocity);

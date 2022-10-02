@@ -23,9 +23,12 @@ import {
   updateAABBWithPoint,
   aabbCenter,
 } from "../physics/broadphase.js";
-import { ColliderDef } from "../physics/collider.js";
+import { AABBCollider, ColliderDef } from "../physics/collider.js";
 import { AngularVelocityDef, LinearVelocityDef } from "../physics/motion.js";
-import { WorldFrameDef } from "../physics/nonintersection.js";
+import {
+  PhysicsResultsDef,
+  WorldFrameDef,
+} from "../physics/nonintersection.js";
 import {
   PhysicsParentDef,
   PositionDef,
@@ -74,7 +77,12 @@ import {
 } from "../wood.js";
 import { yawpitchToQuat } from "../yawpitch.js";
 import { AssetsDef, BLACK } from "./assets.js";
-import { breakBullet, BulletDef, fireBullet } from "./bullet.js";
+import {
+  breakBullet,
+  BulletConstructDef,
+  BulletDef,
+  fireBullet,
+} from "./bullet.js";
 import { ControllableDef } from "./controllable.js";
 import { GlobalCursor3dDef } from "./cursor.js";
 import { createGhost } from "./game-sandbox.js";
@@ -517,6 +525,8 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
 
   // Create player
   {
+    const ColWallDef = em.defineComponent("ColWall", () => ({}));
+
     // create ship bounds
     const colFloor = em.newEntity();
     const flAABB: AABB = {
@@ -538,6 +548,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       aabb: flAABB,
     });
     em.ensureComponentOn(colFloor, PositionDef);
+    em.ensureComponentOn(colFloor, ColWallDef);
 
     const colLeftWall = em.newEntity();
     em.ensureComponentOn(colLeftWall, ColliderDef, {
@@ -549,6 +560,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       },
     });
     em.ensureComponentOn(colLeftWall, PositionDef);
+    em.ensureComponentOn(colLeftWall, ColWallDef);
 
     const colRightWall = em.newEntity();
     em.ensureComponentOn(colRightWall, ColliderDef, {
@@ -560,6 +572,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       },
     });
     em.ensureComponentOn(colRightWall, PositionDef);
+    em.ensureComponentOn(colRightWall, ColWallDef);
 
     const colFrontWall = em.newEntity();
     em.ensureComponentOn(colFrontWall, ColliderDef, {
@@ -571,6 +584,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       },
     });
     em.ensureComponentOn(colFrontWall, PositionDef);
+    em.ensureComponentOn(colFrontWall, ColWallDef);
 
     const colBackWall = em.newEntity();
     em.ensureComponentOn(colBackWall, ColliderDef, {
@@ -582,6 +596,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       },
     });
     em.ensureComponentOn(colBackWall, PositionDef);
+    em.ensureComponentOn(colBackWall, ColWallDef);
 
     // debugVizAABB(colFloor);
     // debugVizAABB(colLeftWall);
@@ -599,6 +614,67 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       transformMesh(mesh, mat4.fromTranslation(tempMat4(), center));
       em.ensureComponentOn(aabbEnt, RenderableConstructDef, mesh);
       em.ensureComponentOn(aabbEnt, ColorDef, vec3.clone(ENDESGA16.orange));
+    }
+
+    // BULLET VS COLLIDERS
+    {
+      const colLeftMid = aabbCenter(
+        vec3.create(),
+        (colLeftWall.collider as AABBCollider).aabb
+      );
+      const colRightMid = aabbCenter(
+        vec3.create(),
+        (colRightWall.collider as AABBCollider).aabb
+      );
+      const colFrontMid = aabbCenter(
+        vec3.create(),
+        (colFrontWall.collider as AABBCollider).aabb
+      );
+      const colBackMid = aabbCenter(
+        vec3.create(),
+        (colBackWall.collider as AABBCollider).aabb
+      );
+
+      em.registerSystem(
+        [BulletConstructDef, LinearVelocityDef, GravityDef],
+        [PhysicsResultsDef],
+        (es, res) => {
+          for (let b of es) {
+            if (b.bulletConstruct.team !== 2) continue;
+            const hits = res.physicsResults.collidesWith.get(b.id);
+            if (hits) {
+              const walls = hits
+                .map((h) => em.findEntity(h, [ColWallDef, WorldFrameDef]))
+                .filter((b) => {
+                  return b;
+                });
+              if (walls.length) {
+                const targetSide =
+                  vec3.sqrDist(b.bulletConstruct.location, colRightMid) >
+                  vec3.sqrDist(b.bulletConstruct.location, colLeftMid)
+                    ? colRightWall
+                    : colLeftWall;
+                const targetFrontBack =
+                  vec3.sqrDist(b.bulletConstruct.location, colFrontMid) >
+                  vec3.sqrDist(b.bulletConstruct.location, colBackMid)
+                    ? colFrontWall
+                    : colBackWall;
+
+                for (let w of walls) {
+                  assert(w);
+                  if (w.id === targetSide.id || w.id === targetFrontBack.id) {
+                    console.log("HIT FAR WALL!");
+                    vec3.zero(b.linearVelocity);
+                    vec3.zero(b.gravity);
+                  }
+                }
+              }
+            }
+          }
+        },
+        "bulletBounce"
+      );
+      sandboxSystems.push("bulletBounce");
     }
 
     // TODO(@darzu): GHOST MODE
@@ -907,7 +983,10 @@ async function startPirates() {
           p.piratePlatform.lastFire = myTime;
           if (WorldFrameDef.isOn(c)) {
             console.log(`pirate fire`);
-            const ballHealth = 2.0;
+
+            // TODO(@darzu): DBG!!!!!
+            const ballHealth = 20.0;
+            // const ballHealth = 2.0;
             fireBullet(
               em,
               2,
