@@ -1,6 +1,6 @@
 import { ColorDef } from "./color-ecs.js";
 import { EM } from "./entity-manager.js";
-import { BLACK, mkTimberSplinterFree, } from "./game/assets.js";
+import { BLACK, } from "./game/assets.js";
 import { BulletDef } from "./game/bullet.js";
 import { GravityDef } from "./game/gravity.js";
 import { mat4, quat, vec2, vec3, vec4 } from "./gl-matrix.js";
@@ -15,7 +15,8 @@ import { getQuadMeshEdges, normalizeMesh, } from "./render/mesh.js";
 import { RenderableConstructDef, RenderableDef, RenderDataStdDef, RendererDef, } from "./render/renderer-ecs.js";
 import { tempVec3 } from "./temp-pool.js";
 import { assert } from "./test.js";
-import { centroid, quatFromUpForward, randNormalVec3, } from "./utils-3d.js";
+import { centroid, quatFromUpForward, randNormalVec3, vec3Dbg, } from "./utils-3d.js";
+import { createSplinterPool } from "./wood-splinters.js";
 // TODO(@darzu): consider other mesh representations like:
 //    DCEL or half-edge data structure
 // export const WoodenDef = EM.defineComponent("wooden", () => {
@@ -129,6 +130,7 @@ onInit((em) => {
 export const SplinterParticleDef = EM.defineComponent("splinter", () => {
     return {};
 });
+const splinterPools = new Map();
 onInit((em) => {
     em.registerSystem([WoodStateDef, WorldFrameDef, WoodHealthDef, RenderableDef, ColorDef], [RendererDef], async (es, res) => {
         // TODO(@darzu):
@@ -137,6 +139,7 @@ onInit((em) => {
             const meshHandle = w.renderable.meshHandle;
             const mesh = meshHandle.readonlyMesh;
             w.woodState.boards.forEach((board, bIdx) => {
+                let pool = undefined;
                 board.forEach((seg, sIdx) => {
                     var _a, _b, _c, _d;
                     const h = w.woodHealth.boards[bIdx][sIdx];
@@ -144,36 +147,40 @@ onInit((em) => {
                         h.broken = true;
                         hideSegment(seg, mesh);
                         needsUpdate = true;
-                        // create flying splinter
+                        // get the board's pool
+                        if (!pool) {
+                            const poolKey = `w${seg.width.toFixed(1)}_d${seg.depth.toFixed(1)}_c${vec3Dbg(w.color)}`;
+                            if (!splinterPools.has(poolKey)) {
+                                console.log(`new splinter pool!: ${poolKey}`);
+                                pool = createSplinterPool(seg.width, seg.depth, 1, vec3.clone(w.color), 40);
+                                splinterPools.set(poolKey, pool);
+                            }
+                            else {
+                                pool = splinterPools.get(poolKey);
+                            }
+                        }
+                        // create flying splinter (from pool)
                         {
-                            // TODO(@darzu): use pool!!
-                            const topW = 0.6 + jitter(0.4);
-                            const botW = 0.6 + jitter(0.4);
-                            const _splinterMesh = mkTimberSplinterFree(topW, botW, 1, seg.width, seg.depth);
-                            const splinterMesh = normalizeMesh(_splinterMesh);
-                            const splinter = EM.newEntity();
-                            EM.ensureComponentOn(splinter, RenderableConstructDef, splinterMesh);
-                            // EM.ensureComponentOn(splinter, ColorDef, [
-                            //   Math.random(),
-                            //   Math.random(),
-                            //   Math.random(),
-                            // ]);
-                            em.ensureComponentOn(splinter, ColorDef, vec3.clone(w.color));
+                            const splinter = pool.getNext();
+                            vec3.copy(splinter.color, w.color);
                             const pos = getLineMid(vec3.create(), seg.midLine);
                             vec3.transformMat4(pos, pos, w.world.transform);
-                            EM.ensureComponentOn(splinter, PositionDef, pos);
+                            EM.ensureComponentOn(splinter, PositionDef);
+                            vec3.copy(splinter.position, pos);
                             const rot = getSegmentRotation(seg, false);
                             quat.mul(rot, rot, w.world.rotation); // TODO(@darzu): !VERIFY! this works
-                            EM.ensureComponentOn(splinter, RotationDef, rot);
+                            EM.ensureComponentOn(splinter, RotationDef);
+                            quat.copy(splinter.rotation, rot);
                             const spin = randNormalVec3(vec3.create());
                             const vel = vec3.clone(spin);
                             vec3.scale(spin, spin, 0.01);
-                            em.ensureComponentOn(splinter, AngularVelocityDef, spin);
+                            em.ensureComponentOn(splinter, AngularVelocityDef);
+                            vec3.copy(splinter.angularVelocity, spin);
                             vec3.scale(vel, vel, 0.01);
-                            em.ensureComponentOn(splinter, LinearVelocityDef, vel);
-                            em.ensureComponentOn(splinter, GravityDef, [0, -3, 0]);
-                            // EM.ensureComponentOn(splinter, WorldFrameDef);
-                            em.ensureComponentOn(splinter, SplinterParticleDef);
+                            em.ensureComponentOn(splinter, LinearVelocityDef);
+                            vec3.copy(splinter.linearVelocity, spin);
+                            em.ensureComponentOn(splinter, GravityDef);
+                            vec3.copy(splinter.gravity, [0, -3, 0]);
                         }
                         if (h.prev && !h.prev.broken) {
                             // create end caps
