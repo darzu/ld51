@@ -3,6 +3,7 @@ import { CanvasDef } from "../canvas.js";
 import { ColorDef } from "../color-ecs.js";
 import { toV3, toFRGB, parseHex } from "../color/color.js";
 import { ENDESGA16 } from "../color/palettes.js";
+import { DeletedDef } from "../delete.js";
 import { createRef } from "../em_helpers.js";
 import { EM, Entity, EntityManager, EntityW } from "../entity-manager.js";
 import { vec3, quat, mat4 } from "../gl-matrix.js";
@@ -63,6 +64,7 @@ import {
   createTimberBuilder,
   createWoodHealth,
   getBoardsFromMesh,
+  registerDestroyPirateHandler,
   SplinterParticleDef,
   TimberBuilder,
   unshareProvokingForWood,
@@ -77,7 +79,8 @@ import { ControllableDef } from "./controllable.js";
 import { GlobalCursor3dDef } from "./cursor.js";
 import { createGhost } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
-import { InteractableDef } from "./interact.js";
+import { InRangeDef, InteractableDef } from "./interact.js";
+import { LifetimeDef } from "./lifetime.js";
 import { createPlayer, LocalPlayerDef, PlayerDef } from "./player.js";
 
 /*
@@ -390,13 +393,13 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   }
 
   em.registerSystem(
-    [LD51CannonDef, WorldFrameDef],
+    [LD51CannonDef, WorldFrameDef, InRangeDef],
     [InputsDef, LocalPlayerDef, MusicDef],
     (cannons, res) => {
       const player = em.findEntity(res.localPlayer.playerId, [PlayerDef])!;
       if (!player) return;
       for (let c of cannons) {
-        if (res.inputs.lclick /* && c.cannonLocal.fireMs <= 0*/) {
+        if (c.inRange && res.inputs.lclick /* && c.cannonLocal.fireMs <= 0*/) {
           const ballHealth = 2.0;
 
           let bulletAxis = vec3.fromValues(0, 0, -1);
@@ -854,6 +857,9 @@ const pitchSpeed = 0.000042;
 async function startPirates() {
   const em: EntityManager = EM;
 
+  // TODO(@darzu): HACK!
+  registerDestroyPirateHandler(destroyPirateShip);
+
   const numPirates = 7;
   for (let i = 0; i < numPirates; i++) {
     const p = await spawnPirate();
@@ -1018,6 +1024,27 @@ async function spawnPirate() {
 
   return platform;
 }
-function initBulletPartPool() {
-  throw new Error("Function not implemented.");
+
+export function destroyPirateShip(id: number, timber: Entity) {
+  // TODO(@darzu): impl
+  console.log(`destroy ${id}`);
+  // pirateShip
+  const e = EM.findEntity(id, [PiratePlatformDef]);
+  if (e) {
+    assert(!!e);
+    EM.ensureComponentOn(e, DeletedDef);
+    if (e.piratePlatform.cannon())
+      EM.ensureComponentOn(e.piratePlatform.cannon()!, DeletedDef);
+  }
+
+  if (WoodHealthDef.isOn(timber) && PhysicsParentDef.isOn(timber)) {
+    // TODO(@darzu): necessary?
+    // timber.physicsParent.id = 0;
+    EM.ensureComponentOn(timber, LifetimeDef, 1000);
+    for (let b of timber.woodHealth.boards) {
+      for (let s of b) {
+        s.health = 0;
+      }
+    }
+  }
 }

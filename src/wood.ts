@@ -166,7 +166,17 @@ onInit((em) => {
                       Math.min(woodHealth.health, ball.bullet.health) + 0.001;
                     woodHealth.health -= dmg;
                     ball.bullet.health -= dmg;
-                    // w.woodHealth.boards[boardIdx][segIdx].health -= 0.2;
+
+                    // TODO(@darzu): HUGE HACK
+                    if (
+                      dmg > 0 &&
+                      mesh.dbgName === "pirateShip" &&
+                      ball.bullet.team === 1
+                    ) {
+                      assert(PhysicsParentDef.isOn(w));
+                      for (let fn of _destroyPirateShipFns)
+                        fn(w.physicsParent.id, w);
+                    }
                   }
                 }
               });
@@ -202,6 +212,12 @@ onInit((em) => {
     "runWooden"
   );
 });
+
+type DestroyPirateShipFn = (id: number, timber: Entity) => void;
+const _destroyPirateShipFns: DestroyPirateShipFn[] = [];
+export function registerDestroyPirateHandler(fn: DestroyPirateShipFn) {
+  _destroyPirateShipFns.push(fn);
+}
 
 export const SplinterParticleDef = EM.defineComponent("splinter", () => {
   return {};
@@ -454,7 +470,7 @@ function createSplinterEnd(
 
 export function createEmptyMesh(dbgName: string) {
   let mesh: RawMesh = {
-    dbgName: "timber_rib",
+    dbgName,
     pos: [],
     tri: [],
     quad: [],

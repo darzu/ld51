@@ -1,6 +1,7 @@
 import { CameraDef, CameraFollowDef } from "../camera.js";
 import { ColorDef } from "../color-ecs.js";
 import { ENDESGA16 } from "../color/palettes.js";
+import { DeletedDef } from "../delete.js";
 import { createRef } from "../em_helpers.js";
 import { EM } from "../entity-manager.js";
 import { vec3, quat, mat4 } from "../gl-matrix.js";
@@ -22,13 +23,14 @@ import { RendererDef, RenderableConstructDef, RenderDataStdDef, } from "../rende
 import { tempMat4, tempVec3 } from "../temp-pool.js";
 import { assert } from "../test.js";
 import { TimeDef } from "../time.js";
-import { createEmptyMesh, createTimberBuilder, createWoodHealth, getBoardsFromMesh, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, } from "../wood.js";
+import { createEmptyMesh, createTimberBuilder, createWoodHealth, getBoardsFromMesh, registerDestroyPirateHandler, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, } from "../wood.js";
 import { AssetsDef, BLACK } from "./assets.js";
 import { breakBullet, BulletDef, fireBullet } from "./bullet.js";
 import { ControllableDef } from "./controllable.js";
 import { createGhost } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
-import { InteractableDef } from "./interact.js";
+import { InRangeDef, InteractableDef } from "./interact.js";
+import { LifetimeDef } from "./lifetime.js";
 import { createPlayer, LocalPlayerDef, PlayerDef } from "./player.js";
 /*
   TODO:
@@ -297,12 +299,12 @@ export async function initLD51Game(em, hosting) {
         }
         em.ensureComponentOn(cannon, LD51CannonDef);
     }
-    em.registerSystem([LD51CannonDef, WorldFrameDef], [InputsDef, LocalPlayerDef, MusicDef], (cannons, res) => {
+    em.registerSystem([LD51CannonDef, WorldFrameDef, InRangeDef], [InputsDef, LocalPlayerDef, MusicDef], (cannons, res) => {
         const player = em.findEntity(res.localPlayer.playerId, [PlayerDef]);
         if (!player)
             return;
         for (let c of cannons) {
-            if (res.inputs.lclick /* && c.cannonLocal.fireMs <= 0*/) {
+            if (c.inRange && res.inputs.lclick /* && c.cannonLocal.fireMs <= 0*/) {
                 const ballHealth = 2.0;
                 let bulletAxis = vec3.fromValues(0, 0, -1);
                 vec3.transformQuat(bulletAxis, bulletAxis, c.world.rotation);
@@ -651,6 +653,8 @@ function rotatePiratePlatform(p, rad) {
 const pitchSpeed = 0.000042;
 async function startPirates() {
     const em = EM;
+    // TODO(@darzu): HACK!
+    registerDestroyPirateHandler(destroyPirateShip);
     const numPirates = 7;
     for (let i = 0; i < numPirates; i++) {
         const p = await spawnPirate();
@@ -760,7 +764,26 @@ async function spawnPirate() {
     }
     return platform;
 }
-function initBulletPartPool() {
-    throw new Error("Function not implemented.");
+export function destroyPirateShip(id, timber) {
+    // TODO(@darzu): impl
+    console.log(`destroy ${id}`);
+    // pirateShip
+    const e = EM.findEntity(id, [PiratePlatformDef]);
+    if (e) {
+        assert(!!e);
+        EM.ensureComponentOn(e, DeletedDef);
+        if (e.piratePlatform.cannon())
+            EM.ensureComponentOn(e.piratePlatform.cannon(), DeletedDef);
+    }
+    if (WoodHealthDef.isOn(timber) && PhysicsParentDef.isOn(timber)) {
+        // TODO(@darzu): necessary?
+        // timber.physicsParent.id = 0;
+        EM.ensureComponentOn(timber, LifetimeDef, 1000);
+        for (let b of timber.woodHealth.boards) {
+            for (let s of b) {
+                s.health = 0;
+            }
+        }
+    }
 }
 //# sourceMappingURL=game-ld51.js.map
