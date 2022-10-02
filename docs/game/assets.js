@@ -312,7 +312,9 @@ export const CUBE_MESH = {
 export function mkTimberSplinterEnd(loopCursor, splintersCursor) {
     loopCursor = loopCursor !== null && loopCursor !== void 0 ? loopCursor : mat4.create();
     splintersCursor = splintersCursor !== null && splintersCursor !== void 0 ? splintersCursor : mat4.create();
-    const b = createTimberBuilder(createEmptyMesh("splinterEnd"), 0.5, 0.2);
+    const b = createTimberBuilder(createEmptyMesh("splinterEnd"));
+    b.width = 0.5;
+    b.depth = 0.2;
     // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.5); // TODO(@darzu): DBG
     // b.addLoopVerts();
     // mat4.translate(b.cursor, b.cursor, [0, 2, 0]);
@@ -333,7 +335,9 @@ export function mkTimberSplinterEnd(loopCursor, splintersCursor) {
 export const mkTimberSplinterFree = (topWidth, botWidth, height, width, depth) => {
     // TODO(@darzu): IMPL!
     // const b = createTimberBuilder(.5, .2);
-    const b = createTimberBuilder(createEmptyMesh("splinter"), width, depth);
+    const b = createTimberBuilder(createEmptyMesh("splinter"));
+    b.width = width;
+    b.depth = depth;
     // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.5); // TODO(@darzu): DBG
     // const Wtop = 1 + jitter(0.9);
     // const Wbot = 1 + jitter(0.9);

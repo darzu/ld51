@@ -17,6 +17,9 @@ import {
   copyLine,
   transformLine,
   lineSphereIntersections,
+  AABB,
+  updateAABBWithPoint,
+  aabbCenter,
 } from "../physics/broadphase.js";
 import { ColliderDef } from "../physics/collider.js";
 import { AngularVelocityDef, LinearVelocityDef } from "../physics/motion.js";
@@ -48,7 +51,7 @@ import {
   RenderableDef,
   RenderDataStdDef,
 } from "../render/renderer-ecs.js";
-import { tempMat4 } from "../temp-pool.js";
+import { tempMat4, tempVec2, tempVec3 } from "../temp-pool.js";
 import { assert } from "../test.js";
 import { TimeDef } from "../time.js";
 import { objMap } from "../util.js";
@@ -185,7 +188,9 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   // RIBS
   const ribWidth = 0.5;
   const ribDepth = 0.4;
-  const builder = createTimberBuilder(_timberMesh, ribWidth, ribDepth);
+  const builder = createTimberBuilder(_timberMesh);
+  builder.width = ribWidth;
+  builder.depth = ribDepth;
   const ribCount = 10;
   const ribSpace = 3;
   for (let i = 0; i < ribCount; i++) {
@@ -435,6 +440,63 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   startPirates();
 }
 
+export function appendPirateShip(b: TimberBuilder) {
+  const firstQuadIdx = b.mesh.quad.length;
+
+  const length = 18;
+
+  b.width = 0.6;
+  b.depth = 0.2;
+
+  // TODO(@darzu): IMPL
+  const xFactor = 0.333;
+
+  const cursor2 = mat4.create();
+
+  mat4.rotateZ(cursor2, cursor2, Math.PI * 1.5);
+  mat4.rotateX(cursor2, cursor2, Math.PI * xFactor);
+  // mat4.rotateX(b.cursor, b.cursor, Math.PI * -0.3 * 0.5);
+
+  for (let hi = 0; hi < 5; hi++) {
+    let numSegs = hi === 0 || hi === 4 ? 6 : 5;
+    const midness = 2 - Math.floor(Math.abs(hi - 2));
+    const segLen = length / 5 + midness * 0.2;
+    mat4.copy(b.cursor, cursor2);
+    const aabb: AABB = createAABB();
+    const firstVi = b.mesh.pos.length;
+    b.addLoopVerts();
+    b.addEndQuad(true);
+    for (let i = 0; i < numSegs; i++) {
+      mat4.translate(b.cursor, b.cursor, [0, segLen, 0]);
+      mat4.rotateX(b.cursor, b.cursor, Math.PI * xFactor * 0.5);
+      b.addLoopVerts();
+      b.addSideQuads();
+      mat4.rotateX(b.cursor, b.cursor, Math.PI * xFactor * 0.5);
+    }
+    b.addEndQuad(false);
+
+    // TODO(@darzu): hACK?
+    // shift wood to center
+    for (let vi = firstVi; vi < b.mesh.pos.length; vi++) {
+      const p = b.mesh.pos[vi];
+      updateAABBWithPoint(aabb, p);
+    }
+    const mid = aabbCenter(tempVec3(), aabb);
+    mid[1] = 0;
+    for (let vi = firstVi; vi < b.mesh.pos.length; vi++) {
+      const p = b.mesh.pos[vi];
+      vec3.sub(p, p, mid);
+    }
+
+    mat4.translate(cursor2, cursor2, [-(b.width * 2.0 + 0.05), 0, 0]);
+  }
+
+  for (let qi = firstQuadIdx; qi < b.mesh.quad.length; qi++)
+    b.mesh.colors.push(vec3.clone(BLACK));
+
+  return b.mesh;
+}
+
 export function appendTimberWallPlank(
   b: TimberBuilder,
   length: number,
@@ -643,7 +705,7 @@ async function spawnPirate() {
     )
   );
   em.ensureComponentOn(platform, RenderableConstructDef, groundMesh);
-  em.ensureComponentOn(platform, ColorDef, vec3.clone(ENDESGA16.darkRed));
+  em.ensureComponentOn(platform, ColorDef, vec3.clone(ENDESGA16.deepBrown));
   // em.ensureComponentOn(p, ColorDef, [0.2, 0.3, 0.2]);
   em.ensureComponentOn(platform, PositionDef, [0, 0, 30]);
   em.ensureComponentOn(platform, RotationDef);
@@ -673,6 +735,8 @@ async function spawnPirate() {
   em.ensureComponentOn(cannon, PhysicsParentDef, platform.id);
   em.ensureComponentOn(cannon, ColorDef, vec3.clone(ENDESGA16.darkGray));
 
+  // TODO(@darzu): HACK!
+  // so they start slightly different pitches
   let initTimer = 0;
   // TODO(@darzu):
   while (initTimer < tiltTimer) {
@@ -680,6 +744,39 @@ async function spawnPirate() {
     const upMode = initTimer % tiltPeriod > tiltPeriod * 0.5;
     let r = Math.PI * pitchSpeed * 16.6666 * (upMode ? -1 : 1);
     quat.rotateX(cannon.rotation, cannon.rotation, r);
+  }
+
+  // TIMBER SHIP
+  {
+    const timber = em.newEntity();
+    const _timberMesh = createEmptyMesh("pirateShip");
+    const builder = createTimberBuilder(_timberMesh);
+
+    appendPirateShip(builder);
+
+    _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
+    const timberState = getBoardsFromMesh(_timberMesh);
+    unshareProvokingForWood(_timberMesh, timberState);
+    const timberMesh = normalizeMesh(_timberMesh);
+    em.ensureComponentOn(timber, RenderableConstructDef, timberMesh);
+    em.ensureComponentOn(timber, WoodStateDef, timberState);
+    em.ensureComponentOn(timber, ColorDef, vec3.clone(ENDESGA16.red));
+    const timberAABB = getAABBFromMesh(timberMesh);
+    em.ensureComponentOn(timber, PositionDef, [0, builder.width, 0]);
+    // em.ensureComponentOn(timber, PositionDef, [
+    //   2 + -builder.depth * 1,
+    //   builder.width,
+    //   -3,
+    // ]);
+    em.ensureComponentOn(timber, RotationDef);
+    em.ensureComponentOn(timber, ColliderDef, {
+      shape: "AABB",
+      solid: false,
+      aabb: timberAABB,
+    });
+    const timberHealth = createWoodHealth(timberState);
+    em.ensureComponentOn(timber, WoodHealthDef, timberHealth);
+    em.ensureComponentOn(timber, PhysicsParentDef, platform.id);
   }
 
   return platform;

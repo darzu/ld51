@@ -536,20 +536,27 @@ export function aabbCenter(out: vec3, a: AABB): vec3 {
   out[2] = (a.min[2] + a.max[2]) * 0.5;
   return out;
 }
+export function updateAABBWithPoint(aabb: AABB, pos: vec3): AABB {
+  aabb.min[0] = Math.min(pos[0], aabb.min[0]);
+  aabb.min[1] = Math.min(pos[1], aabb.min[1]);
+  aabb.min[2] = Math.min(pos[2], aabb.min[2]);
+  aabb.max[0] = Math.max(pos[0], aabb.max[0]);
+  aabb.max[1] = Math.max(pos[1], aabb.max[1]);
+  aabb.max[2] = Math.max(pos[2], aabb.max[2]);
+  return aabb;
+}
+
 export function getAABBFromPositions(positions: vec3[]): AABB {
-  const min = vec3.fromValues(Infinity, Infinity, Infinity);
-  const max = vec3.fromValues(-Infinity, -Infinity, -Infinity);
+  const aabb: AABB = {
+    min: vec3.fromValues(Infinity, Infinity, Infinity),
+    max: vec3.fromValues(-Infinity, -Infinity, -Infinity),
+  };
 
   for (let pos of positions) {
-    min[0] = Math.min(pos[0], min[0]);
-    min[1] = Math.min(pos[1], min[1]);
-    min[2] = Math.min(pos[2], min[2]);
-    max[0] = Math.max(pos[0], max[0]);
-    max[1] = Math.max(pos[1], max[1]);
-    max[2] = Math.max(pos[2], max[2]);
+    updateAABBWithPoint(aabb, pos);
   }
 
-  return { min, max };
+  return aabb;
 }
 
 export interface Sphere {

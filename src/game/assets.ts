@@ -402,7 +402,9 @@ export const CUBE_MESH: RawMesh = {
 export function mkTimberSplinterEnd(loopCursor?: mat4, splintersCursor?: mat4) {
   loopCursor = loopCursor ?? mat4.create();
   splintersCursor = splintersCursor ?? mat4.create();
-  const b = createTimberBuilder(createEmptyMesh("splinterEnd"), 0.5, 0.2);
+  const b = createTimberBuilder(createEmptyMesh("splinterEnd"));
+  b.width = 0.5;
+  b.depth = 0.2;
 
   // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.5); // TODO(@darzu): DBG
   // b.addLoopVerts();
@@ -436,7 +438,9 @@ export const mkTimberSplinterFree = (
 ) => {
   // TODO(@darzu): IMPL!
   // const b = createTimberBuilder(.5, .2);
-  const b = createTimberBuilder(createEmptyMesh("splinter"), width, depth);
+  const b = createTimberBuilder(createEmptyMesh("splinter"));
+  b.width = width;
+  b.depth = depth;
 
   // mat4.rotateY(b.cursor, b.cursor, Math.PI * -0.5); // TODO(@darzu): DBG
 

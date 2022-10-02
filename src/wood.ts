@@ -372,7 +372,9 @@ function createSplinterEnd(
   const cursor = mat4.fromRotationTranslation(mat4.create(), rot, pos);
   let _splinterMesh: RawMesh;
   {
-    const b = createTimberBuilder(createEmptyMesh("splinterEnd"), W, D);
+    const b = createTimberBuilder(createEmptyMesh("splinterEnd"));
+    b.width = W;
+    b.depth = D;
 
     b.setCursor(cursor);
     b.addLoopVerts();
@@ -446,11 +448,7 @@ export function createEmptyMesh(dbgName: string) {
 }
 
 export type TimberBuilder = ReturnType<typeof createTimberBuilder>;
-export function createTimberBuilder(
-  mesh: RawMesh,
-  width: number,
-  depth: number
-) {
+export function createTimberBuilder(mesh: RawMesh) {
   // TODO(@darzu): have a system for building wood?
 
   // const W = 0.5; // width
@@ -459,8 +457,8 @@ export function createTimberBuilder(
   const cursor: mat4 = mat4.create();
 
   const b = {
-    width,
-    depth,
+    width: 0.2,
+    depth: 0.2,
     mesh,
     cursor,
     addSplinteredEnd,

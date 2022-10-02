@@ -245,7 +245,9 @@ function createSplinterEnd(seg, boardMesh, top, W, D) {
     const cursor = mat4.fromRotationTranslation(mat4.create(), rot, pos);
     let _splinterMesh;
     {
-        const b = createTimberBuilder(createEmptyMesh("splinterEnd"), W, D);
+        const b = createTimberBuilder(createEmptyMesh("splinterEnd"));
+        b.width = W;
+        b.depth = D;
         b.setCursor(cursor);
         b.addLoopVerts();
         // TODO(@darzu): HACK. We're "snapping" the splinter loop and segment loops
@@ -309,14 +311,14 @@ export function createEmptyMesh(dbgName) {
     };
     return mesh;
 }
-export function createTimberBuilder(mesh, width, depth) {
+export function createTimberBuilder(mesh) {
     // TODO(@darzu): have a system for building wood?
     // const W = 0.5; // width
     // const D = 0.2; // depth
     const cursor = mat4.create();
     const b = {
-        width,
-        depth,
+        width: 0.2,
+        depth: 0.2,
         mesh,
         cursor,
         addSplinteredEnd,
