@@ -19,6 +19,7 @@ export const InteractableDef = EM.defineComponent(
   (colliderId?: number) => ({
     // TODO(@darzu): components having pointers to entities should be
     //  handled better
+    // TODO(@darzu): use Ref system
     colliderId: colliderId || 0,
   })
 );

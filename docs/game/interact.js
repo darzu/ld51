@@ -7,6 +7,7 @@ import { clearTint, setTint, TintsDef } from "../color-ecs.js";
 export const InteractableDef = EM.defineComponent("interaction", (colliderId) => ({
     // TODO(@darzu): components having pointers to entities should be
     //  handled better
+    // TODO(@darzu): use Ref system
     colliderId: colliderId || 0,
 }));
 export const InRangeDef = EM.defineComponent("inRange", () => true);

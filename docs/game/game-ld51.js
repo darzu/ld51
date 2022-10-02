@@ -4,8 +4,10 @@ import { ENDESGA16 } from "../color/palettes.js";
 import { createRef } from "../em_helpers.js";
 import { EM } from "../entity-manager.js";
 import { vec3, quat, mat4 } from "../gl-matrix.js";
+import { InputsDef } from "../inputs.js";
 import { jitter } from "../math.js";
-import { createAABB, updateAABBWithPoint, aabbCenter, } from "../physics/broadphase.js";
+import { MusicDef, randChordId } from "../music.js";
+import { createAABB, copyAABB, updateAABBWithPoint, aabbCenter, } from "../physics/broadphase.js";
 import { ColliderDef } from "../physics/collider.js";
 import { AngularVelocityDef, LinearVelocityDef } from "../physics/motion.js";
 import { WorldFrameDef } from "../physics/nonintersection.js";
@@ -26,7 +28,8 @@ import { breakBullet, BulletDef, fireBullet } from "./bullet.js";
 import { ControllableDef } from "./controllable.js";
 import { createGhost } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
-import { createPlayer } from "./player.js";
+import { InteractableDef } from "./interact.js";
+import { createPlayer, LocalPlayerDef, PlayerDef } from "./player.js";
 /*
   TODO:
   [ ] Player can walk on ship
@@ -52,6 +55,9 @@ import { createPlayer } from "./player.js";
 */
 // TODO(@darzu): HACK. we need a better way to programmatically create sandbox games
 export const sandboxSystems = [];
+export const LD51CannonDef = EM.defineComponent("ld51Cannon", () => {
+    return {};
+});
 export async function initLD51Game(em, hosting) {
     const camera = em.addSingletonComponent(CameraDef);
     camera.fov = Math.PI * 0.5;
@@ -268,12 +274,50 @@ export async function initLD51Game(em, hosting) {
             -4 * isLeft,
         ]);
         em.ensureComponentOn(cannon, RotationDef);
-        quat.rotateX(cannon.rotation, cannon.rotation, Math.PI * 0.03 * isLeft);
+        quat.rotateX(cannon.rotation, cannon.rotation, Math.PI * 0.01 * isLeft);
         if (isLeft !== 1) {
             quat.rotateY(cannon.rotation, cannon.rotation, Math.PI);
         }
         em.ensureComponentOn(cannon, ColorDef, vec3.clone(ENDESGA16.darkGreen));
+        // TODO(@darzu): USE PALETTE PROPERLY
+        vec3.scale(cannon.color, cannon.color, 0.5);
+        {
+            const interactBox = EM.newEntity();
+            const interactAABB = copyAABB(createAABB(), res.assets.ld51_cannon.aabb);
+            vec3.scale(interactAABB.min, interactAABB.min, 2);
+            vec3.scale(interactAABB.max, interactAABB.max, 2);
+            EM.ensureComponentOn(interactBox, PhysicsParentDef, cannon.id);
+            EM.ensureComponentOn(interactBox, PositionDef, [0, 0, 0]);
+            EM.ensureComponentOn(interactBox, ColliderDef, {
+                shape: "AABB",
+                solid: false,
+                aabb: interactAABB,
+            });
+            em.ensureComponentOn(cannon, InteractableDef, interactBox.id);
+        }
+        em.ensureComponentOn(cannon, LD51CannonDef);
     }
+    em.registerSystem([LD51CannonDef, WorldFrameDef], [InputsDef, LocalPlayerDef, MusicDef], (cannons, res) => {
+        const player = em.findEntity(res.localPlayer.playerId, [PlayerDef]);
+        if (!player)
+            return;
+        for (let c of cannons) {
+            if (res.inputs.lclick /* && c.cannonLocal.fireMs <= 0*/) {
+                const ballHealth = 2.0;
+                let bulletAxis = vec3.fromValues(0, 0, -1);
+                vec3.transformQuat(bulletAxis, bulletAxis, c.world.rotation);
+                vec3.normalize(bulletAxis, bulletAxis);
+                const bulletPos = vec3.clone(c.world.position);
+                vec3.scale(bulletAxis, bulletAxis, 2);
+                vec3.add(bulletPos, bulletPos, bulletAxis);
+                fireBullet(em, 1, bulletPos, c.world.rotation, 0.05, 0.02, 3, ballHealth);
+                // c.cannonLocal.fireMs = c.cannonLocal.fireDelayMs;
+                const chord = randChordId();
+                res.music.playChords([chord], "major", 2.0, 3.0, -2);
+            }
+        }
+    }, "ld51PlayerFireCannon");
+    sandboxSystems.push("ld51PlayerFireCannon");
     const splinterObjId = 7654;
     em.registerSystem([
         SplinterParticleDef,
@@ -420,7 +464,7 @@ export async function initLD51Game(em, hosting) {
             em.ensureComponentOn(aabbEnt, ColorDef, vec3.clone(ENDESGA16.orange));
         }
         // TODO(@darzu): GHOST MODE
-        const DBG_PLAYER = true;
+        const DBG_PLAYER = false;
         if (DBG_PLAYER) {
             const ghost = createGhost(em);
             vec3.copy(ghost.position, [0, 1, -1.2]);
@@ -444,7 +488,7 @@ export async function initLD51Game(em, hosting) {
         }
         if (!DBG_PLAYER) {
             const _player = createPlayer(em);
-            // vec3.set(_player.playerProps.location, -10, realFloorHeight + 6, 0);
+            vec3.set(_player.playerProps.location, -10, realFloorHeight + 6, 0);
             em.whenEntityHas(_player, PositionDef, RotationDef, CameraFollowDef, ControllableDef, ColliderDef).then((player) => {
                 console.log(`init player?`);
                 Object.assign(player.controllable.modes, {
@@ -526,7 +570,7 @@ export function appendTimberWallPlank(b, length, numSegs, plankIdx) {
     b.addEndQuad(true);
     const segLen = length / numSegs;
     for (let i = 0; i < numSegs; i++) {
-        if (i === 2 && (plankIdx === 3 || plankIdx === 3.5)) {
+        if (i === 2 && 3 <= plankIdx && plankIdx <= 4) {
             // hole
             b.addEndQuad(false);
             mat4.translate(b.cursor, b.cursor, [0, segLen * 0.55, 0]);
