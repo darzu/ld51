@@ -70,7 +70,7 @@ import {
 } from "../wood.js";
 import { yawpitchToQuat } from "../yawpitch.js";
 import { AssetsDef, BLACK } from "./assets.js";
-import { fireBullet } from "./bullet.js";
+import { breakBullet, BulletDef, fireBullet } from "./bullet.js";
 import { GlobalCursor3dDef } from "./cursor.js";
 import { createGhost } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
@@ -433,6 +433,21 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   );
   sandboxSystems.push("runLD51Timber");
 
+  // TODO(@darzu): breakBullet
+  em.registerSystem(
+    [BulletDef, ColorDef, WorldFrameDef, LinearVelocityDef],
+    [],
+    (es, res) => {
+      for (let b of es) {
+        if (b.bullet.health <= 0) {
+          breakBullet(b);
+        }
+      }
+    },
+    "breakBullets"
+  );
+  sandboxSystems.push("breakBullets");
+
   startPirates();
 }
 
@@ -780,4 +795,7 @@ async function spawnPirate() {
   }
 
   return platform;
+}
+function initBulletPartPool() {
+  throw new Error("Function not implemented.");
 }

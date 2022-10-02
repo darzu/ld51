@@ -1,4 +1,10 @@
-import { EM, EntityManager, Component, Entity } from "../entity-manager.js";
+import {
+  EM,
+  EntityManager,
+  Component,
+  Entity,
+  EntityW,
+} from "../entity-manager.js";
 import { quat, vec3 } from "../gl-matrix.js";
 import { FinishedDef } from "../build.js";
 import { ColorDef } from "../color-ecs.js";
@@ -18,6 +24,12 @@ import { LifetimeDef } from "./lifetime.js";
 import { TimeDef } from "../time.js";
 import { GravityDef } from "./gravity.js";
 import { ENDESGA16 } from "../color/palettes.js";
+import { WorldFrameDef } from "../physics/nonintersection.js";
+import { DeletedDef } from "../delete.js";
+import { MusicDef } from "../music.js";
+import { randNormalVec3 } from "../utils-3d.js";
+import { SplinterParticleDef } from "../wood.js";
+import { tempVec3 } from "../temp-pool.js";
 
 export const BulletDef = EM.defineComponent(
   "bullet",
@@ -157,4 +169,90 @@ export function fireBullet(
     gravity,
     health
   );
+}
+
+type BulletPart = EntityW<[typeof PositionDef, typeof ColorDef]>;
+const bulletPartPool: BulletPart[][] = [];
+let _bulletPartPoolIsInit = false;
+let _bulletPartPoolNext = 0;
+
+function getNextBulletPartSet(): BulletPart[] {
+  const res = bulletPartPool[_bulletPartPoolNext];
+
+  _bulletPartPoolNext += 1;
+  _bulletPartPoolNext = _bulletPartPoolNext % bulletPartPool.length;
+
+  return res;
+}
+
+async function initBulletPartPool() {
+  if (_bulletPartPoolIsInit) return;
+  _bulletPartPoolIsInit = true;
+  const em: EntityManager = EM;
+  const { assets } = await em.whenResources(AssetsDef);
+
+  const numSetsInPool = 20;
+
+  for (let i = 0; i < numSetsInPool; i++) {
+    let bset: BulletPart[] = [];
+    for (let part of assets.ball_broken) {
+      const pe = em.newEntity();
+      em.ensureComponentOn(pe, RenderableConstructDef, part.proto);
+      em.ensureComponentOn(pe, ColorDef);
+      em.ensureComponentOn(pe, RotationDef);
+      em.ensureComponentOn(pe, PositionDef);
+      em.ensureComponentOn(pe, LinearVelocityDef);
+      em.ensureComponentOn(pe, AngularVelocityDef);
+      // em.ensureComponentOn(pe, LifetimeDef, 2000);
+      em.ensureComponentOn(pe, GravityDef, [0, -4, 0]);
+      em.ensureComponentOn(pe, SplinterParticleDef);
+      bset.push(pe);
+    }
+    bulletPartPool.push(bset);
+  }
+}
+
+// TODO(@darzu): use object pool!
+export async function breakBullet(
+  bullet: EntityW<
+    [
+      typeof BulletDef,
+      typeof WorldFrameDef,
+      typeof ColorDef,
+      typeof LinearVelocityDef
+    ]
+  >
+) {
+  const em: EntityManager = EM;
+
+  if (DeletedDef.isOn(bullet)) return;
+  if (!WorldFrameDef.isOn(bullet)) return; // TODO(@darzu): BUG. Why does this happen sometimes?
+
+  if (!_bulletPartPoolIsInit) await initBulletPartPool();
+
+  const { music, assets } = await em.whenResources(MusicDef, AssetsDef);
+
+  // TODO(@darzu): different sound
+  music.playChords([3], "minor", 2.0, 5.0, -1);
+
+  for (let pe of getNextBulletPartSet()) {
+    vec3.copy(pe.position, bullet.world.position);
+    vec3.copy(pe.color, bullet.color);
+    const vel = vec3.clone(bullet.linearVelocity);
+    vec3.normalize(vel, vel);
+    vec3.negate(vel, vel);
+    vec3.add(vel, vel, randNormalVec3(tempVec3()));
+    vec3.add(vel, vel, [0, -1, 0]);
+    vec3.normalize(vel, vel);
+    vec3.scale(vel, vel, 0.02);
+    em.ensureComponentOn(pe, LinearVelocityDef);
+    vec3.copy(pe.linearVelocity, vel);
+    em.ensureComponentOn(pe, AngularVelocityDef);
+    vec3.copy(pe.angularVelocity, vel);
+    // em.ensureComponentOn(pe, LifetimeDef, 2000);
+    em.ensureComponentOn(pe, GravityDef);
+    vec3.copy(pe.gravity, [0, -4, 0]);
+  }
+
+  em.ensureComponentOn(bullet, DeletedDef);
 }

@@ -24,7 +24,7 @@ import { assert } from "../test.js";
 import { TimeDef } from "../time.js";
 import { createEmptyMesh, createTimberBuilder, createWoodHealth, getBoardsFromMesh, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, } from "../wood.js";
 import { AssetsDef, BLACK } from "./assets.js";
-import { fireBullet } from "./bullet.js";
+import { breakBullet, BulletDef, fireBullet } from "./bullet.js";
 import { createGhost } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
 /*
@@ -321,6 +321,15 @@ export async function initLD51Game(em, hosting) {
         }
     }, "runLD51Timber");
     sandboxSystems.push("runLD51Timber");
+    // TODO(@darzu): breakBullet
+    em.registerSystem([BulletDef, ColorDef, WorldFrameDef, LinearVelocityDef], [], (es, res) => {
+        for (let b of es) {
+            if (b.bullet.health <= 0) {
+                breakBullet(b);
+            }
+        }
+    }, "breakBullets");
+    sandboxSystems.push("breakBullets");
     startPirates();
 }
 export function appendPirateShip(b) {
@@ -556,5 +565,8 @@ async function spawnPirate() {
         em.ensureComponentOn(timber, PhysicsParentDef, platform.id);
     }
     return platform;
+}
+function initBulletPartPool() {
+    throw new Error("Function not implemented.");
 }
 //# sourceMappingURL=game-ld51.js.map

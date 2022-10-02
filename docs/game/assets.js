@@ -46,6 +46,7 @@ const RemoteMesheSets = {
     // TODO(@darzu): enemy broken parts doesn't seem to work rn. probably rename related
     boat_broken: "boat_broken.sprig.obj",
     ship_broken: "barge1_broken.sprig.obj",
+    ball_broken: "ball_broken6.sprig.obj",
 };
 const MeshTransforms = {
     cannon: mat4.fromYRotation(mat4.create(), -Math.PI / 2),
