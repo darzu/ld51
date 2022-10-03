@@ -3,16 +3,16 @@ struct VertexOutput {
     @location(1) @interpolate(flat) color : vec3<f32>,
     @location(2) worldPos: vec4<f32>,
     //@location(3) shadowPos: vec3<f32>,
-    @location(3) uv: vec2<f32>,
-    @location(4) @interpolate(flat) surface: u32,
-    @location(5) @interpolate(flat) id: u32,
+    // @location(3) uv: vec2<f32>,
+    @location(3) @interpolate(flat) surface: u32,
+    @location(4) @interpolate(flat) id: u32,
     @builtin(position) position : vec4<f32>,
 };
 
 @vertex
 fn vert_main(input: VertexInput) -> VertexOutput {
     let position = input.position;
-    let uv = input.uv;
+    // let uv = input.uv;
     let color = input.color;
     let normal = input.normal;
 
@@ -46,7 +46,7 @@ fn vert_main(input: VertexInput) -> VertexOutput {
     output.surface = input.surfaceId;
     output.id = meshUni.id;
 
-    output.uv = uv;
+    // output.uv = uv;
 
     return output;
 }

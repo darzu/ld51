@@ -13,13 +13,19 @@ export const VertexStruct = createCyStruct(
     position: "vec3<f32>",
     color: "vec3<f32>",
     normal: "vec3<f32>",
-    uv: "vec2<f32>",
+    // uv: "vec2<f32>",
     surfaceId: "u32",
   },
   {
     isCompact: true,
     serializer: (
-      { position, color, normal, uv, surfaceId },
+      {
+        position,
+        color,
+        normal,
+        // uv,
+        surfaceId,
+      },
       _,
       offsets_32,
       views
@@ -27,8 +33,9 @@ export const VertexStruct = createCyStruct(
       views.f32.set(position, offsets_32[0]);
       views.f32.set(color, offsets_32[1]);
       views.f32.set(normal, offsets_32[2]);
-      views.f32.set(uv, offsets_32[3]);
-      views.u32[offsets_32[4]] = surfaceId;
+      // views.f32.set(uv, offsets_32[3]);
+      // views.u32[offsets_32[4]] = surfaceId;
+      views.u32[offsets_32[3]] = surfaceId;
     },
   }
 );
