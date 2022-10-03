@@ -5,6 +5,10 @@ import { assert } from "../test.js";
 import { arrayUnsortedEqual } from "../util.js";
 import { vec3Mid } from "../utils-3d.js";
 import { drawBall } from "../utils-game.js";
+export function meshStats(m) {
+    var _a;
+    return `${(_a = m.dbgName) !== null && _a !== void 0 ? _a : "??"}: v${m.pos.length}, t${m.tri.length}, q${m.quad.length}`;
+}
 export function cloneMesh(m) {
     var _a, _b, _c, _d;
     return {

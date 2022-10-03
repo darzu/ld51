@@ -33,9 +33,12 @@ import {
   cloneMesh,
   getAABBFromMesh,
   getHalfsizeFromAABB,
+  Mesh,
+  meshStats,
   normalizeMesh,
   scaleMesh3,
   transformMesh,
+  validateMesh,
 } from "../render/mesh.js";
 import { stdRenderPipeline } from "../render/pipelines/std-mesh.js";
 import { outlineRender } from "../render/pipelines/std-outline.js";
@@ -55,6 +58,7 @@ import {
   createWoodHealth,
   getBoardsFromMesh,
   registerDestroyPirateHandler,
+  reserveSplinterSpace,
   SplinterParticleDef,
   TimberBuilder,
   unshareProvokingForWood,
@@ -214,7 +218,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
 
   // TIMBER
   const timber = em.newEntity();
-  const _timberMesh = createEmptyMesh("rib");
+  const _timberMesh = createEmptyMesh("homeShip");
   // RIBS
   const ribWidth = 0.5;
   const ribDepth = 0.4;
@@ -382,7 +386,15 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
   const timberState = getBoardsFromMesh(_timberMesh);
   unshareProvokingForWood(_timberMesh, timberState);
-  const timberMesh = normalizeMesh(_timberMesh);
+  // console.log(`before: ` + meshStats(_timberMesh));
+  // const timberMesh = normalizeMesh(_timberMesh);
+  // console.log(`after: ` + meshStats(timberMesh));
+  const timberMesh = _timberMesh as Mesh;
+  timberMesh.usesProvoking = true;
+
+  reserveSplinterSpace(timberState, 200);
+  validateMesh(timberState.mesh);
+
   em.ensureComponentOn(timber, RenderableConstructDef, timberMesh);
   em.ensureComponentOn(timber, WoodStateDef, timberState);
   em.ensureComponentOn(timber, ColorDef, vec3.clone(ENDESGA16.darkBrown));
@@ -1297,7 +1309,16 @@ async function spawnPirate(rad: number) {
     _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
     const timberState = getBoardsFromMesh(_timberMesh);
     unshareProvokingForWood(_timberMesh, timberState);
-    const timberMesh = normalizeMesh(_timberMesh);
+    // console.log(`before: ` + meshStats(_timberMesh));
+    // const timberMesh = normalizeMesh(_timberMesh);
+    // console.log(`after: ` + meshStats(timberMesh));
+    const timberMesh = _timberMesh as Mesh;
+    timberMesh.usesProvoking = true;
+    // TODO(@darzu): reserve room for splinter ends
+    // reserveSplinterSpace(timberState
+
+    reserveSplinterSpace(timberState, 10);
+
     em.ensureComponentOn(timber, RenderableConstructDef, timberMesh);
     em.ensureComponentOn(timber, WoodStateDef, timberState);
     em.ensureComponentOn(timber, ColorDef, vec3.clone(ENDESGA16.red));

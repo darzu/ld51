@@ -15,7 +15,7 @@ import { AngularVelocityDef, LinearVelocityDef } from "../physics/motion.js";
 import { PhysicsResultsDef, WorldFrameDef, } from "../physics/nonintersection.js";
 import { PhysicsParentDef, PositionDef, RotationDef, ScaleDef, } from "../physics/transform.js";
 import { PointLightDef } from "../render/lights.js";
-import { cloneMesh, getAABBFromMesh, getHalfsizeFromAABB, normalizeMesh, scaleMesh3, transformMesh, } from "../render/mesh.js";
+import { cloneMesh, getAABBFromMesh, getHalfsizeFromAABB, scaleMesh3, transformMesh, validateMesh, } from "../render/mesh.js";
 import { stdRenderPipeline } from "../render/pipelines/std-mesh.js";
 import { outlineRender } from "../render/pipelines/std-outline.js";
 import { postProcess } from "../render/pipelines/std-post.js";
@@ -24,7 +24,7 @@ import { RendererDef, RenderableConstructDef, RenderDataStdDef, } from "../rende
 import { tempMat4, tempVec3 } from "../temp-pool.js";
 import { assert } from "../test.js";
 import { TimeDef } from "../time.js";
-import { createEmptyMesh, createTimberBuilder, createWoodHealth, getBoardsFromMesh, registerDestroyPirateHandler, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, _numSplinterEnds, } from "../wood.js";
+import { createEmptyMesh, createTimberBuilder, createWoodHealth, getBoardsFromMesh, registerDestroyPirateHandler, reserveSplinterSpace, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, _numSplinterEnds, } from "../wood.js";
 import { AssetsDef, BLACK } from "./assets.js";
 import { breakBullet, BulletConstructDef, BulletDef, fireBullet, } from "./bullet.js";
 import { ControllableDef } from "./controllable.js";
@@ -145,7 +145,7 @@ export async function initLD51Game(em, hosting) {
     // });
     // TIMBER
     const timber = em.newEntity();
-    const _timberMesh = createEmptyMesh("rib");
+    const _timberMesh = createEmptyMesh("homeShip");
     // RIBS
     const ribWidth = 0.5;
     const ribDepth = 0.4;
@@ -292,7 +292,13 @@ export async function initLD51Game(em, hosting) {
     _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
     const timberState = getBoardsFromMesh(_timberMesh);
     unshareProvokingForWood(_timberMesh, timberState);
-    const timberMesh = normalizeMesh(_timberMesh);
+    // console.log(`before: ` + meshStats(_timberMesh));
+    // const timberMesh = normalizeMesh(_timberMesh);
+    // console.log(`after: ` + meshStats(timberMesh));
+    const timberMesh = _timberMesh;
+    timberMesh.usesProvoking = true;
+    reserveSplinterSpace(timberState, 200);
+    validateMesh(timberState.mesh);
     em.ensureComponentOn(timber, RenderableConstructDef, timberMesh);
     em.ensureComponentOn(timber, WoodStateDef, timberState);
     em.ensureComponentOn(timber, ColorDef, vec3.clone(ENDESGA16.darkBrown));
@@ -968,7 +974,14 @@ async function spawnPirate(rad) {
         _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
         const timberState = getBoardsFromMesh(_timberMesh);
         unshareProvokingForWood(_timberMesh, timberState);
-        const timberMesh = normalizeMesh(_timberMesh);
+        // console.log(`before: ` + meshStats(_timberMesh));
+        // const timberMesh = normalizeMesh(_timberMesh);
+        // console.log(`after: ` + meshStats(timberMesh));
+        const timberMesh = _timberMesh;
+        timberMesh.usesProvoking = true;
+        // TODO(@darzu): reserve room for splinter ends
+        // reserveSplinterSpace(timberState
+        reserveSplinterSpace(timberState, 10);
         em.ensureComponentOn(timber, RenderableConstructDef, timberMesh);
         em.ensureComponentOn(timber, WoodStateDef, timberState);
         em.ensureComponentOn(timber, ColorDef, vec3.clone(ENDESGA16.red));
