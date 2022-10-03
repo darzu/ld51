@@ -169,7 +169,7 @@ function callFixedTimestepSystems() {
   EM.callSystem("toolPickup");
   EM.callSystem("toolDrop");
   EM.callSystem("animateTo");
-  EM.callSystem("netDebugSystem");
+  // EM.callSystem("netDebugSystem");
   EM.callSystem("netAck");
   EM.callSystem("netSync");
   EM.callSystem("sendOutboxes");
