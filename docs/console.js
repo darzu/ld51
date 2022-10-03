@@ -1,7 +1,9 @@
 import { EM } from "./entity-manager.js";
+import { GPU_DBG_PERF } from "./flags.js";
 import { TextDef } from "./game/ui.js";
 import { InputsDef } from "./inputs.js";
 import { _lastCollisionTestTimeMs, _doesOverlapAABBs, _enclosedBys, _cellChecks, } from "./physics/broadphase.js";
+import { _gpuQueueBufferWriteBytes } from "./render/data-webgpu.js";
 import { RendererDef } from "./render/renderer-ecs.js";
 export const DevConsoleDef = EM.defineComponent("dev", () => {
     const stats = {
@@ -22,7 +24,7 @@ export const DevConsoleDef = EM.defineComponent("dev", () => {
     });
 });
 let avgWeight = 0.05;
-function updateAvg(avg, curr) {
+export function updateAvg(avg, curr) {
     return avg ? (1 - avgWeight) * avg + avgWeight * curr : curr;
 }
 export function registerDevSystems(em) {
@@ -31,6 +33,10 @@ export function registerDevSystems(em) {
         if (res.inputs.keyClicks["`"])
             res.dev.showConsole = !res.dev.showConsole;
     }, "devConsoleToggle");
+    let lastGPUBytes = 0;
+    let avgGPUBytes = 0;
+    let maxFrameGPUBytes = 0;
+    let warmUpFrame = 500;
     em.registerSystem(null, [RendererDef, TextDef, DevConsoleDef], async (_, res) => {
         if (!res.dev.showConsole) {
             res.text.debugText = "";
@@ -53,6 +59,15 @@ export function registerDevSystems(em) {
         pipelineTimes.forEach((time, pipeline) => pipelineTimesTxts.push(`\n${pipeline} ${(Number(time / BigInt(1000)) / 1000).toFixed(2)}`));
         const { avgFrameTime, avgJsTime, avgSimTime } = res.dev;
         const poolStats = res.renderer.renderer.getMeshPoolStats();
+        if (GPU_DBG_PERF) {
+            const frameBytes = _gpuQueueBufferWriteBytes - lastGPUBytes;
+            if (warmUpFrame <= 0)
+                maxFrameGPUBytes = Math.max(maxFrameGPUBytes, frameBytes);
+            else
+                warmUpFrame--;
+            avgGPUBytes = updateAvg(avgGPUBytes, frameBytes);
+            lastGPUBytes = _gpuQueueBufferWriteBytes;
+        }
         const avgFPS = 1000 / avgFrameTime;
         const dbgTxt = controlsStr +
             ` ` +
@@ -63,6 +78,13 @@ export function registerDevSystems(em) {
             `fps:${avgFPS.toFixed(1)} ` +
             `tris:${poolStats.numTris} ` +
             `verts:${poolStats.numVerts} ` +
+            (GPU_DBG_PERF ? `avgGpuBytes: ${avgGPUBytes.toFixed(0)}b ` : ``) +
+            (GPU_DBG_PERF
+                ? `allGpuBytes: ${(_gpuQueueBufferWriteBytes / (1024 * 1024)).toFixed(0)}mb `
+                : ``) +
+            (GPU_DBG_PERF
+                ? `maxFrameGPUBytes: ${(maxFrameGPUBytes / 1024).toFixed(0)}kb `
+                : ``) +
             //`buffers:(r=${reliableBufferSize}/u=${unreliableBufferSize}) ` +
             `dropped:${numDroppedUpdates} ` +
             `entities:${EM.entities.size} ` +

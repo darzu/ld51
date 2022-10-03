@@ -260,7 +260,9 @@ async function startGame(localPeerName: string, host: string | null) {
     previous_frame_time = frame_time;
 
     const devStats = EM.getResource(DevConsoleDef);
-    if (devStats) devStats.updateAvgs(jsTime, frameTime, jsTime);
+    if (devStats) {
+      devStats.updateAvgs(jsTime, frameTime, jsTime);
+    }
 
     requestAnimationFrame(frame);
   };

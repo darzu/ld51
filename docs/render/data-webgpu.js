@@ -4,9 +4,11 @@ import { isNumber } from "../util.js";
 import { texTypeIsStencil, texTypeToBytes, } from "./gpu-struct.js";
 import { isRenderPipelinePtr, } from "./gpu-registry.js";
 import { GPUBufferUsage } from "./webgpu-hacks.js";
+import { GPU_DBG_PERF } from "../flags.js";
 export function isRenderPipeline(p) {
     return isRenderPipelinePtr(p.ptr);
 }
+export let _gpuQueueBufferWriteBytes = 0;
 export function createCySingleton(device, struct, usage, initData) {
     var _a;
     assert((_a = struct.opts) === null || _a === void 0 ? void 0 : _a.isUniform, "CyOne struct must be created with isUniform");
@@ -36,6 +38,9 @@ export function createCySingleton(device, struct, usage, initData) {
         buf.lastData = data;
         const b = struct.serialize(data);
         // assert(b.length % 4 === 0, `buf write must be 4 byte aligned: ${b.length}`);
+        if (GPU_DBG_PERF) {
+            _gpuQueueBufferWriteBytes += b.length;
+        }
         device.queue.writeBuffer(_buf, 0, b);
     }
     function binding(idx, plurality) {
@@ -86,6 +91,9 @@ export function createCyArray(device, struct, usage, lenOrData) {
         const b = struct.serialize(data);
         // TODO(@darzu): disable for perf?
         // assert(b.length % 4 === 0);
+        if (GPU_DBG_PERF) {
+            _gpuQueueBufferWriteBytes += b.length;
+        }
         device.queue.writeBuffer(_buf, index * stride, b);
     }
     function queueUpdates(data, index) {
@@ -94,6 +102,9 @@ export function createCyArray(device, struct, usage, lenOrData) {
             serialized.set(struct.serialize(d), stride * i);
         });
         // assert(serialized.length % 4 === 0);
+        if (GPU_DBG_PERF) {
+            _gpuQueueBufferWriteBytes += serialized.length;
+        }
         device.queue.writeBuffer(_buf, index * stride, serialized);
     }
     function binding(idx, plurality) {
@@ -132,6 +143,9 @@ export function createCyIdxBuf(device, lenOrData) {
         const startByte = startIdx * Uint16Array.BYTES_PER_ELEMENT;
         // const byteView = new Uint8Array(data);
         // assert(data.length % 2 === 0);
+        if (GPU_DBG_PERF) {
+            _gpuQueueBufferWriteBytes += data.length;
+        }
         device.queue.writeBuffer(_buf, startByte, data);
     }
     return buf;
