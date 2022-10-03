@@ -67,7 +67,7 @@ import { postProcess } from "../render/pipelines/std-post.js";
 import { outlineRender } from "../render/pipelines/std-outline.js";
 
 export function registerCommonSystems(em: EntityManager) {
-  registerNetSystems(em);
+  // registerNetSystems(em);
   registerInitCanvasSystem(em);
   registerUISystems(em);
   registerDevSystems(em);

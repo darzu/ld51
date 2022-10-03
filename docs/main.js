@@ -3,7 +3,7 @@ import { setupObjImportExporter } from "./download.js";
 import { EM } from "./entity-manager.js";
 import { tick } from "./time.js";
 import { InputsDef, registerInputsSystem } from "./inputs.js";
-import { MeDef, JoinDef, HostDef, PeerNameDef } from "./net/components.js";
+import { MeDef, JoinDef, HostDef } from "./net/components.js";
 import { addEventComponents } from "./net/events.js";
 import { dbg } from "./debugger.js";
 import { DevConsoleDef } from "./console.js";
@@ -33,9 +33,9 @@ function callFixedTimestepSystems() {
     //    - uncalled systems maybe should give a warning? Or at least a one-time read out.
     //    - Lets use types for this. String matching the name is brittle and unnessessary
     EM.callSystem("inputs");
-    EM.callSystem("getStatsFromNet");
-    EM.callSystem("getEventsFromNet");
-    EM.callSystem("sendEventsToNet");
+    // EM.callSystem("getStatsFromNet");
+    // EM.callSystem("getEventsFromNet");
+    // EM.callSystem("sendEventsToNet");
     EM.callSystem("canvas");
     EM.callSystem("uiText");
     EM.callSystem("devConsoleToggle");
@@ -44,14 +44,14 @@ function callFixedTimestepSystems() {
     // EM.callSystem("updateScore");
     EM.callSystem("renderInit");
     EM.callSystem("musicStart");
-    EM.callSystem("handleNetworkEvents");
+    // EM.callSystem("handleNetworkEvents");
     EM.callSystem("recordPreviousLocations");
     EM.callSystem("clearRemoteUpdatesMarker");
-    EM.callSystem("netUpdate");
+    // EM.callSystem("netUpdate");
     EM.callSystem("predict");
-    EM.callSystem("connectToServer");
-    EM.callSystem("handleJoin");
-    EM.callSystem("handleJoinResponse");
+    // EM.callSystem("connectToServer");
+    // EM.callSystem("handleJoin");
+    // EM.callSystem("handleJoinResponse");
     EM.callSystem("buildBullets");
     EM.callSystem("buildCursor");
     EM.callSystem("placeCursorAtScreenCenter");
@@ -154,17 +154,17 @@ function callFixedTimestepSystems() {
     EM.callSystem("toolDrop");
     EM.callSystem("animateTo");
     // EM.callSystem("netDebugSystem");
-    EM.callSystem("netAck");
-    EM.callSystem("netSync");
-    EM.callSystem("sendOutboxes");
-    EM.callSystem("detectedEventsToHost");
-    EM.callSystem("handleEventRequests");
-    EM.callSystem("handleEventRequestAcks");
-    EM.callSystem("detectedEventsToRequestedEvents");
-    EM.callSystem("requestedEventsToEvents");
-    EM.callSystem("sendEvents");
-    EM.callSystem("handleEvents");
-    EM.callSystem("handleEventAcks");
+    // EM.callSystem("netAck");
+    // EM.callSystem("netSync");
+    // EM.callSystem("sendOutboxes");
+    // EM.callSystem("detectedEventsToHost");
+    // EM.callSystem("handleEventRequests");
+    // EM.callSystem("handleEventRequestAcks");
+    // EM.callSystem("detectedEventsToRequestedEvents");
+    // EM.callSystem("requestedEventsToEvents");
+    // EM.callSystem("sendEvents");
+    // EM.callSystem("handleEvents");
+    // EM.callSystem("handleEventAcks");
     EM.callSystem("runEvents");
     EM.callSystem("delete");
     EM.callSystem("smoothMotion");
@@ -188,7 +188,7 @@ async function startGame(localPeerName, host) {
     EM.setIdRange("local", 1, 10000);
     // TODO(@darzu): ECS stuff
     // init ECS
-    EM.addSingletonComponent(PeerNameDef, localPeerName);
+    // EM.addSingletonComponent(PeerNameDef, localPeerName);
     if (hosting) {
         // TODO(@darzu): ECS
         EM.setDefaultRange("net");
@@ -265,7 +265,8 @@ async function main() {
     var _a;
     const queryString = Object.fromEntries(new URLSearchParams(window.location.search).entries());
     const urlServerId = (_a = queryString["server"]) !== null && _a !== void 0 ? _a : null;
-    const peerName = getPeerName(queryString);
+    // const peerName = getPeerName(queryString);
+    const peerName = "myPeerName";
     let controls = document.getElementById("server-controls");
     let serverStartButton = document.getElementById("server-start");
     let connectButton = document.getElementById("connect");

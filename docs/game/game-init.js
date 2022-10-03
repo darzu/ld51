@@ -3,7 +3,6 @@ import { registerInitTransforms } from "../physics/transform.js";
 import { registerEnemyShipSystems } from "./enemy-ship.js";
 import { LocalPlayerDef, registerPlayerSystems } from "./player.js";
 import { CameraDef, CameraFollowDef, registerCameraSystems, setCameraFollowPosition, } from "../camera.js";
-import { registerNetSystems } from "../net/net.js";
 import { registerHandleNetworkEvents, registerSendOutboxes, } from "../net/network-event-handler.js";
 import { registerJoinSystems } from "../net/join.js";
 import { registerSyncSystem, registerUpdateSystem, registerAckUpdateSystem, } from "../net/sync.js";
@@ -34,7 +33,7 @@ import { registerDevSystems } from "../console.js";
 import { registerControllableSystems } from "./controllable.js";
 import { registerGameStateSystems, } from "./gamestate.js";
 export function registerCommonSystems(em) {
-    registerNetSystems(em);
+    // registerNetSystems(em);
     registerInitCanvasSystem(em);
     registerUISystems(em);
     registerDevSystems(em);
