@@ -66,6 +66,8 @@ export const LD51CannonDef = EM.defineComponent("ld51Cannon", () => {
 });
 let pirateKills = 0;
 let healthPercent = 100;
+let _numGoodBalls = 0;
+const MAX_GOODBALLS = 10;
 export async function initLD51Game(em, hosting) {
     const camera = em.addSingletonComponent(CameraDef);
     camera.fov = Math.PI * 0.5;
@@ -371,6 +373,7 @@ export async function initLD51Game(em, hosting) {
                 const heldBall = EM.findEntity(player.player.holdingBall, []);
                 if (heldBall) {
                     EM.ensureComponentOn(heldBall, DeletedDef);
+                    _numGoodBalls--;
                 }
                 player.player.holdingBall = 0;
                 // c.cannonLocal.fireMs = c.cannonLocal.fireDelayMs;
@@ -549,7 +552,8 @@ export async function initLD51Game(em, hosting) {
                                     vec3.zero(b.linearVelocity);
                                     vec3.zero(b.gravity);
                                     em.ensureComponentOn(b, DeletedDef);
-                                    spawnGoodBall(b.world.position);
+                                    if (_numGoodBalls < MAX_GOODBALLS)
+                                        spawnGoodBall(b.world.position);
                                 }
                             }
                         }
@@ -558,8 +562,10 @@ export async function initLD51Game(em, hosting) {
             }, "bulletBounce");
             sandboxSystems.push("bulletBounce");
         }
+        // TODO(@darzu): use a pool for goodballs
         const GoodBallDef = EM.defineComponent("goodBall", () => true);
         function spawnGoodBall(pos) {
+            _numGoodBalls++;
             const ball = em.newEntity();
             em.ensureComponentOn(ball, RenderableConstructDef, res.assets.ball.proto);
             em.ensureComponentOn(ball, ColorDef, vec3.clone(ENDESGA16.orange));
@@ -567,21 +573,19 @@ export async function initLD51Game(em, hosting) {
             em.ensureComponentOn(ball, GoodBallDef);
             em.ensureComponentOn(ball, LinearVelocityDef);
             em.ensureComponentOn(ball, GravityDef, [0, -3, 0]);
-            {
-                const interactBox = EM.newEntity();
-                const interactAABB = copyAABB(createAABB(), res.assets.ball.aabb);
-                vec3.scale(interactAABB.min, interactAABB.min, 2);
-                vec3.scale(interactAABB.max, interactAABB.max, 2);
-                EM.ensureComponentOn(interactBox, PhysicsParentDef, ball.id);
-                EM.ensureComponentOn(interactBox, PositionDef, [0, 0, 0]);
-                EM.ensureComponentOn(interactBox, ColliderDef, {
-                    shape: "AABB",
-                    solid: false,
-                    aabb: interactAABB,
-                });
-                em.ensureComponentOn(ball, InteractableDef, interactBox.id);
-                // em.ensureComponentOn(ball, WorldFrameDef);
-            }
+            const interactBox = EM.newEntity();
+            const interactAABB = copyAABB(createAABB(), res.assets.ball.aabb);
+            vec3.scale(interactAABB.min, interactAABB.min, 2);
+            vec3.scale(interactAABB.max, interactAABB.max, 2);
+            EM.ensureComponentOn(interactBox, PhysicsParentDef, ball.id);
+            EM.ensureComponentOn(interactBox, PositionDef, [0, 0, 0]);
+            EM.ensureComponentOn(interactBox, ColliderDef, {
+                shape: "AABB",
+                solid: false,
+                aabb: interactAABB,
+            });
+            em.ensureComponentOn(ball, InteractableDef, interactBox.id);
+            // em.ensureComponentOn(ball, WorldFrameDef);
         }
         // starter ammo
         {
@@ -692,7 +696,7 @@ export async function initLD51Game(em, hosting) {
             res.text.upperText = `Hull %${healthPercent.toFixed(1)}, Kills ${pirateKills}, !${elapsedPer}`;
             if (DBG_PLAYER) {
                 // TODO(@darzu): IMPL
-                res.text.lowerText = `splinterEnds: ${_numSplinterEnds}`;
+                res.text.lowerText = `splinterEnds: ${_numSplinterEnds}, goodballs: ${_numGoodBalls}`;
             }
             else {
                 res.text.lowerText = `WASD+Shift; left click to pick up cannon balls and fire the cannons. Survive! They attack like clockwork.`;

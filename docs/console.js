@@ -52,6 +52,7 @@ export function registerDevSystems(em) {
         let pipelineTimesTxts = [];
         pipelineTimes.forEach((time, pipeline) => pipelineTimesTxts.push(`\n${pipeline} ${(Number(time / BigInt(1000)) / 1000).toFixed(2)}`));
         const { avgFrameTime, avgJsTime, avgSimTime } = res.dev;
+        const poolStats = res.renderer.renderer.getMeshPoolStats();
         const avgFPS = 1000 / avgFrameTime;
         const dbgTxt = controlsStr +
             ` ` +
@@ -60,6 +61,8 @@ export function registerDevSystems(em) {
             `broad:(${_lastCollisionTestTimeMs.toFixed(1)}ms ` +
             `o:${_doesOverlapAABBs} e:${_enclosedBys} c:${_cellChecks}) ` +
             `fps:${avgFPS.toFixed(1)} ` +
+            `tris:${poolStats.numTris} ` +
+            `verts:${poolStats.numVerts} ` +
             //`buffers:(r=${reliableBufferSize}/u=${unreliableBufferSize}) ` +
             `dropped:${numDroppedUpdates} ` +
             `entities:${EM.entities.size} ` +

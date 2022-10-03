@@ -32,6 +32,8 @@ export function createRenderer(canvas, device, context, shaders) {
         submitPipelines,
         readTexture,
         stats,
+        // debug
+        getMeshPoolStats,
     };
     const timestampQuerySet = device.features.has("timestamp-query")
         ? device.createQuerySet({
@@ -43,6 +45,17 @@ export function createRenderer(canvas, device, context, shaders) {
     const cyKindToNameToRes = resources.kindToNameToRes;
     const stdPool = cyKindToNameToRes.meshPool[meshPoolPtr.name];
     const oceanPool = cyKindToNameToRes.meshPool[oceanPoolPtr.name];
+    function getMeshPoolStats() {
+        const stats = {
+            numTris: 0,
+            numVerts: 0,
+        };
+        for (let p of Object.values(cyKindToNameToRes.meshPool)) {
+            stats.numTris += p.numTris;
+            stats.numVerts += p.numVerts;
+        }
+        return stats;
+    }
     const sceneUni = cyKindToNameToRes.singleton[sceneBufPtr.name];
     const pointLightsArray = cyKindToNameToRes.array[pointLightsPtr.name];
     const gerstnerWavesArray = cyKindToNameToRes.array[gerstnerWavesPtr.name];

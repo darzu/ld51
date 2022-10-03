@@ -1,7 +1,6 @@
 import { CameraDef, CameraFollowDef } from "../camera.js";
 import { CanvasDef } from "../canvas.js";
 import { ColorDef } from "../color-ecs.js";
-import { toV3, toFRGB, parseHex } from "../color/color.js";
 import { ENDESGA16 } from "../color/palettes.js";
 import { DeletedDef } from "../delete.js";
 import { createRef } from "../em_helpers.js";
@@ -12,13 +11,7 @@ import { jitter } from "../math.js";
 import { MusicDef, randChordId } from "../music.js";
 import {
   createAABB,
-  emptyLine,
   copyAABB,
-  transformAABB,
-  Sphere,
-  copyLine,
-  transformLine,
-  lineSphereIntersections,
   AABB,
   updateAABBWithPoint,
   aabbCenter,
@@ -39,11 +32,8 @@ import { PointLightDef } from "../render/lights.js";
 import {
   cloneMesh,
   getAABBFromMesh,
-  getCenterFromAABB,
   getHalfsizeFromAABB,
   normalizeMesh,
-  RawMesh,
-  scaleMesh,
   scaleMesh3,
   transformMesh,
 } from "../render/mesh.js";
@@ -54,14 +44,11 @@ import { shadowPipelines } from "../render/pipelines/std-shadow.js";
 import {
   RendererDef,
   RenderableConstructDef,
-  RenderableDef,
   RenderDataStdDef,
 } from "../render/renderer-ecs.js";
-import { tempMat4, tempVec2, tempVec3 } from "../temp-pool.js";
+import { tempMat4, tempVec3 } from "../temp-pool.js";
 import { assert } from "../test.js";
 import { TimeDef } from "../time.js";
-import { objMap } from "../util.js";
-import { randomizeMeshColors, drawLine2 } from "../utils-game.js";
 import {
   createEmptyMesh,
   createTimberBuilder,
@@ -71,12 +58,10 @@ import {
   SplinterParticleDef,
   TimberBuilder,
   unshareProvokingForWood,
-  WoodAssetsDef,
   WoodHealthDef,
   WoodStateDef,
   _numSplinterEnds,
 } from "../wood.js";
-import { yawpitchToQuat } from "../yawpitch.js";
 import { AssetsDef, BLACK } from "./assets.js";
 import {
   breakBullet,
@@ -85,7 +70,6 @@ import {
   fireBullet,
 } from "./bullet.js";
 import { ControllableDef } from "./controllable.js";
-import { GlobalCursor3dDef } from "./cursor.js";
 import { createGhost, GhostDef } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
 import { InRangeDef, InteractableDef } from "./interact.js";
@@ -129,6 +113,9 @@ export const LD51CannonDef = EM.defineComponent("ld51Cannon", () => {
 
 let pirateKills = 0;
 let healthPercent = 100;
+
+let _numGoodBalls = 0;
+const MAX_GOODBALLS = 10;
 
 export async function initLD51Game(em: EntityManager, hosting: boolean) {
   const camera = em.addSingletonComponent(CameraDef);
@@ -498,6 +485,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
           const heldBall = EM.findEntity(player.player.holdingBall, []);
           if (heldBall) {
             EM.ensureComponentOn(heldBall, DeletedDef);
+            _numGoodBalls--;
           }
 
           player.player.holdingBall = 0;
@@ -729,7 +717,8 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
                     vec3.zero(b.linearVelocity);
                     vec3.zero(b.gravity);
                     em.ensureComponentOn(b, DeletedDef);
-                    spawnGoodBall(b.world.position);
+                    if (_numGoodBalls < MAX_GOODBALLS)
+                      spawnGoodBall(b.world.position);
                   }
                 }
               }
@@ -741,8 +730,10 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       sandboxSystems.push("bulletBounce");
     }
 
+    // TODO(@darzu): use a pool for goodballs
     const GoodBallDef = EM.defineComponent("goodBall", () => true);
     function spawnGoodBall(pos: vec3) {
+      _numGoodBalls++;
       const ball = em.newEntity();
       em.ensureComponentOn(ball, RenderableConstructDef, res.assets.ball.proto);
       em.ensureComponentOn(ball, ColorDef, vec3.clone(ENDESGA16.orange));
@@ -750,21 +741,19 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       em.ensureComponentOn(ball, GoodBallDef);
       em.ensureComponentOn(ball, LinearVelocityDef);
       em.ensureComponentOn(ball, GravityDef, [0, -3, 0]);
-      {
-        const interactBox = EM.newEntity();
-        const interactAABB = copyAABB(createAABB(), res.assets.ball.aabb);
-        vec3.scale(interactAABB.min, interactAABB.min, 2);
-        vec3.scale(interactAABB.max, interactAABB.max, 2);
-        EM.ensureComponentOn(interactBox, PhysicsParentDef, ball.id);
-        EM.ensureComponentOn(interactBox, PositionDef, [0, 0, 0]);
-        EM.ensureComponentOn(interactBox, ColliderDef, {
-          shape: "AABB",
-          solid: false,
-          aabb: interactAABB,
-        });
-        em.ensureComponentOn(ball, InteractableDef, interactBox.id);
-        // em.ensureComponentOn(ball, WorldFrameDef);
-      }
+      const interactBox = EM.newEntity();
+      const interactAABB = copyAABB(createAABB(), res.assets.ball.aabb);
+      vec3.scale(interactAABB.min, interactAABB.min, 2);
+      vec3.scale(interactAABB.max, interactAABB.max, 2);
+      EM.ensureComponentOn(interactBox, PhysicsParentDef, ball.id);
+      EM.ensureComponentOn(interactBox, PositionDef, [0, 0, 0]);
+      EM.ensureComponentOn(interactBox, ColliderDef, {
+        shape: "AABB",
+        solid: false,
+        aabb: interactAABB,
+      });
+      em.ensureComponentOn(ball, InteractableDef, interactBox.id);
+      // em.ensureComponentOn(ball, WorldFrameDef);
     }
 
     // starter ammo
@@ -905,7 +894,7 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
 
         if (DBG_PLAYER) {
           // TODO(@darzu): IMPL
-          res.text.lowerText = `splinterEnds: ${_numSplinterEnds}`;
+          res.text.lowerText = `splinterEnds: ${_numSplinterEnds}, goodballs: ${_numGoodBalls}`;
         } else {
           res.text.lowerText = `WASD+Shift; left click to pick up cannon balls and fire the cannons. Survive! They attack like clockwork.`;
         }

@@ -87,6 +87,8 @@ export function registerDevSystems(em: EntityManager) {
 
       const { avgFrameTime, avgJsTime, avgSimTime } = res.dev;
 
+      const poolStats = res.renderer.renderer.getMeshPoolStats();
+
       const avgFPS = 1000 / avgFrameTime;
 
       const dbgTxt =
@@ -97,6 +99,8 @@ export function registerDevSystems(em: EntityManager) {
         `broad:(${_lastCollisionTestTimeMs.toFixed(1)}ms ` +
         `o:${_doesOverlapAABBs} e:${_enclosedBys} c:${_cellChecks}) ` +
         `fps:${avgFPS.toFixed(1)} ` +
+        `tris:${poolStats.numTris} ` +
+        `verts:${poolStats.numVerts} ` +
         //`buffers:(r=${reliableBufferSize}/u=${unreliableBufferSize}) ` +
         `dropped:${numDroppedUpdates} ` +
         `entities:${EM.entities.size} ` +
