@@ -61,7 +61,7 @@ import { TextDef } from "./ui.js";
   [ ] add dark ends
 */
 // TODO(@darzu): GHOST MODE
-const DBG_PLAYER = true;
+const DBG_PLAYER = false;
 // TODO(@darzu): HACK. we need a better way to programmatically create sandbox games
 export const sandboxSystems = [];
 export const LD51CannonDef = EM.defineComponent("ld51Cannon", () => {

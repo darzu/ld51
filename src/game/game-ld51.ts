@@ -109,7 +109,7 @@ import { TextDef } from "./ui.js";
 */
 
 // TODO(@darzu): GHOST MODE
-const DBG_PLAYER = true;
+const DBG_PLAYER = false;
 
 // TODO(@darzu): HACK. we need a better way to programmatically create sandbox games
 export const sandboxSystems: string[] = [];
