@@ -27,6 +27,7 @@ import {
   getLineMid,
   Line,
   lineSphereIntersections,
+  mergeAABBs,
   Sphere,
   transformAABB,
   transformLine,
@@ -94,6 +95,7 @@ onInit((em) => {
 
       const ballAABBWorld = createAABB();
       const segAABBWorld = createAABB();
+      const boardAABBWorld = createAABB();
       const worldLine = emptyLine();
 
       const before = performance.now();
@@ -132,14 +134,21 @@ onInit((em) => {
 
             w.woodState.boards.forEach((board, boardIdx) => {
               if (ball.bullet.health <= 0) return;
-              board.forEach((seg, segIdx) => {
+
+              // does the ball hit the board?
+              copyAABB(boardAABBWorld, board.localAABB);
+              transformAABB(boardAABBWorld, w.world.transform);
+              overlapChecks++;
+              if (!doesOverlapAABB(ballAABBWorld, boardAABBWorld)) return;
+
+              board.segments.forEach((seg, segIdx) => {
                 if (ball.bullet.health <= 0) return;
-                // TODO(@darzu):
+
+                // does the ball hit the segment?
                 copyAABB(segAABBWorld, seg.localAABB);
                 transformAABB(segAABBWorld, w.world.transform);
                 overlapChecks++;
                 if (doesOverlapAABB(ballAABBWorld, segAABBWorld)) {
-                  // TODO(@darzu): hack, turn boards red on AABB hit
                   segAABBHits += 1;
                   for (let qi of seg.quadSideIdxs) {
                     if (DBG_COLOR && mesh.colors[qi][1] < 1) {
@@ -148,6 +157,7 @@ onInit((em) => {
                     }
                   }
 
+                  // does the ball hit the middle of the segment?
                   copyLine(worldLine, seg.midLine);
                   transformLine(worldLine, w.world.transform);
                   const midHits = lineSphereIntersections(
@@ -244,7 +254,7 @@ onInit((em: EntityManager) => {
 
         w.woodState.boards.forEach((board, bIdx) => {
           let pool: SplinterPool | undefined = undefined;
-          board.forEach((seg, sIdx) => {
+          board.segments.forEach((seg, sIdx) => {
             const h = w.woodHealth.boards[bIdx][sIdx];
             if (!h.broken && h.health <= 0) {
               h.broken = true;
@@ -653,7 +663,10 @@ interface BoardSeg {
   quadSideIdxs: number[]; // TODO(@darzu): alway 4?
   quadEndIdxs: number[]; // TODO(@darzu): always 0,1,2?
 }
-type Board = BoardSeg[];
+interface Board {
+  segments: BoardSeg[];
+  localAABB: AABB;
+}
 interface WoodState {
   usedVertIdxs: Set<number>;
   usedQuadIdxs: Set<number>;
@@ -734,7 +747,14 @@ export function getBoardsFromMesh(m: RawMesh): WoodState {
       //   assert(0 <= qi && qi < m.quad.length, "invalid qi")
       // );
       // boardQis.forEach((qi) => newQuads.push(m.quad[qi]));
-      return allSegments;
+
+      // TODO(@darzu): IML
+      const localAABB = createAABB();
+      for (let s of allSegments) mergeAABBs(localAABB, localAABB, s.localAABB);
+      return {
+        segments: allSegments,
+        localAABB,
+      };
     }
 
     return undefined;
@@ -926,7 +946,7 @@ export function unshareProvokingForWood(m: RawMesh, woodState: WoodState) {
   for (let b of woodState.boards) {
     // for (let b of [woodState.boards[60]]) {
     // first, do ends
-    for (let seg of b) {
+    for (let seg of b.segments) {
       for (let qi of seg.quadEndIdxs) {
         const done = unshareProvokingForBoardQuad(m.quad[qi], qi);
         if (!done)
@@ -934,7 +954,7 @@ export function unshareProvokingForWood(m: RawMesh, woodState: WoodState) {
         // console.log(`end: ${m.quad[qi]}`);
       }
     }
-    for (let seg of b) {
+    for (let seg of b.segments) {
       for (let qi of seg.quadSideIdxs) {
         const done = unshareProvokingForBoardQuad(m.quad[qi], qi, [
           ...seg.vertLastLoopIdxs,
@@ -1011,7 +1031,7 @@ export function createWoodHealth(w: WoodState) {
   // TODO(@darzu):
   return {
     boards: w.boards.map((b) => {
-      let lastSeg = b.reduce((p, n) => {
+      let lastSeg = b.segments.reduce((p, n) => {
         const h: SegHealth = {
           prev: p,
           health: 1.0,

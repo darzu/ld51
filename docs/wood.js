@@ -7,7 +7,7 @@ import { mat4, quat, vec2, vec3, vec4 } from "./gl-matrix.js";
 import { onInit } from "./init.js";
 import { jitter } from "./math.js";
 import { MusicDef } from "./music.js";
-import { copyAABB, copyLine, createAABB, createLine, doesOverlapAABB, emptyLine, getAABBFromPositions, getLineEnd, getLineMid, lineSphereIntersections, transformAABB, transformLine, } from "./physics/broadphase.js";
+import { copyAABB, copyLine, createAABB, createLine, doesOverlapAABB, emptyLine, getAABBFromPositions, getLineEnd, getLineMid, lineSphereIntersections, mergeAABBs, transformAABB, transformLine, } from "./physics/broadphase.js";
 import { ColliderDef } from "./physics/collider.js";
 import { AngularVelocityDef, LinearVelocityDef } from "./physics/motion.js";
 import { PhysicsResultsDef, WorldFrameDef } from "./physics/nonintersection.js";
@@ -34,6 +34,7 @@ onInit((em) => {
         const { collidesWith } = res.physicsResults;
         const ballAABBWorld = createAABB();
         const segAABBWorld = createAABB();
+        const boardAABBWorld = createAABB();
         const worldLine = emptyLine();
         const before = performance.now();
         let segAABBHits = 0;
@@ -66,15 +67,20 @@ onInit((em) => {
                     w.woodState.boards.forEach((board, boardIdx) => {
                         if (ball.bullet.health <= 0)
                             return;
-                        board.forEach((seg, segIdx) => {
+                        // does the ball hit the board?
+                        copyAABB(boardAABBWorld, board.localAABB);
+                        transformAABB(boardAABBWorld, w.world.transform);
+                        overlapChecks++;
+                        if (!doesOverlapAABB(ballAABBWorld, boardAABBWorld))
+                            return;
+                        board.segments.forEach((seg, segIdx) => {
                             if (ball.bullet.health <= 0)
                                 return;
-                            // TODO(@darzu):
+                            // does the ball hit the segment?
                             copyAABB(segAABBWorld, seg.localAABB);
                             transformAABB(segAABBWorld, w.world.transform);
                             overlapChecks++;
                             if (doesOverlapAABB(ballAABBWorld, segAABBWorld)) {
-                                // TODO(@darzu): hack, turn boards red on AABB hit
                                 segAABBHits += 1;
                                 for (let qi of seg.quadSideIdxs) {
                                     if (DBG_COLOR && mesh.colors[qi][1] < 1) {
@@ -82,6 +88,7 @@ onInit((em) => {
                                         mesh.colors[qi] = [1, 0, 0];
                                     }
                                 }
+                                // does the ball hit the middle of the segment?
                                 copyLine(worldLine, seg.midLine);
                                 transformLine(worldLine, w.world.transform);
                                 const midHits = lineSphereIntersections(worldLine, worldSphere);
@@ -157,7 +164,7 @@ onInit((em) => {
             const mesh = meshHandle.readonlyMesh;
             w.woodState.boards.forEach((board, bIdx) => {
                 let pool = undefined;
-                board.forEach((seg, sIdx) => {
+                board.segments.forEach((seg, sIdx) => {
                     var _a, _b, _c, _d;
                     const h = w.woodHealth.boards[bIdx][sIdx];
                     if (!h.broken && h.health <= 0) {
@@ -535,7 +542,14 @@ export function getBoardsFromMesh(m) {
             //   assert(0 <= qi && qi < m.quad.length, "invalid qi")
             // );
             // boardQis.forEach((qi) => newQuads.push(m.quad[qi]));
-            return allSegments;
+            // TODO(@darzu): IML
+            const localAABB = createAABB();
+            for (let s of allSegments)
+                mergeAABBs(localAABB, localAABB, s.localAABB);
+            return {
+                segments: allSegments,
+                localAABB,
+            };
         }
         return undefined;
         function addBoardSegment(lastLoop, isFirstLoop = false) {
@@ -699,7 +713,7 @@ export function unshareProvokingForWood(m, woodState) {
     for (let b of woodState.boards) {
         // for (let b of [woodState.boards[60]]) {
         // first, do ends
-        for (let seg of b) {
+        for (let seg of b.segments) {
             for (let qi of seg.quadEndIdxs) {
                 const done = unshareProvokingForBoardQuad(m.quad[qi], qi);
                 if (!done)
@@ -707,7 +721,7 @@ export function unshareProvokingForWood(m, woodState) {
                 // console.log(`end: ${m.quad[qi]}`);
             }
         }
-        for (let seg of b) {
+        for (let seg of b.segments) {
             for (let qi of seg.quadSideIdxs) {
                 const done = unshareProvokingForBoardQuad(m.quad[qi], qi, [
                     ...seg.vertLastLoopIdxs,
@@ -760,7 +774,7 @@ export function createWoodHealth(w) {
     // TODO(@darzu):
     return {
         boards: w.boards.map((b) => {
-            let lastSeg = b.reduce((p, n) => {
+            let lastSeg = b.segments.reduce((p, n) => {
                 const h = {
                     prev: p,
                     health: 1.0,

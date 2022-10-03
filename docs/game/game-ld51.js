@@ -1,4 +1,5 @@
 import { CameraDef, CameraFollowDef } from "../camera.js";
+import { CanvasDef } from "../canvas.js";
 import { ColorDef } from "../color-ecs.js";
 import { ENDESGA16 } from "../color/palettes.js";
 import { DeletedDef } from "../delete.js";
@@ -27,7 +28,7 @@ import { createEmptyMesh, createTimberBuilder, createWoodHealth, getBoardsFromMe
 import { AssetsDef, BLACK } from "./assets.js";
 import { breakBullet, BulletConstructDef, BulletDef, fireBullet, } from "./bullet.js";
 import { ControllableDef } from "./controllable.js";
-import { createGhost } from "./game-sandbox.js";
+import { createGhost, GhostDef } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
 import { InRangeDef, InteractableDef } from "./interact.js";
 import { LifetimeDef } from "./lifetime.js";
@@ -56,6 +57,8 @@ import { TextDef } from "./ui.js";
   [ ] adjust ship size
   [ ] add dark ends
 */
+// TODO(@darzu): GHOST MODE
+const DBG_PLAYER = true;
 // TODO(@darzu): HACK. we need a better way to programmatically create sandbox games
 export const sandboxSystems = [];
 export const LD51CannonDef = EM.defineComponent("ld51Cannon", () => {
@@ -405,35 +408,21 @@ export async function initLD51Game(em, hosting) {
     // const quadIdsNeedReset = new Set<number>();
     // assert(_player?.collider.shape === "AABB");
     // console.dir(ghost.collider.aabb);
-    // em.registerSystem(
-    //   null,
-    //   [InputsDef, CanvasDef],
-    //   (_, { inputs, htmlCanvas }) => {
-    //     const ballAABBWorld = createAABB();
-    //     const segAABBWorld = createAABB();
-    //     const worldLine = emptyLine();
-    //     assert(_player?.collider.shape === "AABB");
-    //     copyAABB(ballAABBWorld, _player.collider.aabb);
-    //     transformAABB(ballAABBWorld, _player.world.transform);
-    //     // TODO(@darzu): this sphere should live elsewhere..
-    //     const worldSphere: Sphere = {
-    //       org: _player.world.position,
-    //       rad: 1,
-    //       // rad: (ballAABBWorld.max[0] - ballAABBWorld.min[0]) * 0.5,
-    //     };
-    //     if (inputs.lclick && htmlCanvas.hasFirstInteraction) {
-    //       // TODO(@darzu): fire?
-    //       console.log(`fire!`);
-    //       const firePos = worldSphere.org;
-    //       const fireDir = quat.create();
-    //       quat.copy(fireDir, _player.world.rotation);
-    //       const ballHealth = 2.0;
-    //       fireBullet(em, 1, firePos, fireDir, 0.05, 0.02, 3, ballHealth);
-    //     }
-    //   },
-    //   "runLD51Timber"
-    // );
-    // sandboxSystems.push("runLD51Timber");
+    em.registerSystem([GhostDef, WorldFrameDef, ColliderDef], [InputsDef, CanvasDef], (ps, { inputs, htmlCanvas }) => {
+        if (!ps.length)
+            return;
+        const ghost = ps[0];
+        if (inputs.lclick && htmlCanvas.hasFirstInteraction) {
+            // console.log(`fire!`);
+            const firePos = ghost.world.position;
+            const fireDir = quat.create();
+            quat.copy(fireDir, ghost.world.rotation);
+            const ballHealth = 2.0;
+            fireBullet(em, 1, firePos, fireDir, 0.05, 0.02, 3, ballHealth);
+        }
+    }, "ld51Ghost");
+    if (DBG_PLAYER)
+        sandboxSystems.push("ld51Ghost");
     // TODO(@darzu): breakBullet
     em.registerSystem([BulletDef, ColorDef, WorldFrameDef, LinearVelocityDef], [], (es, res) => {
         for (let b of es) {
@@ -641,8 +630,6 @@ export async function initLD51Game(em, hosting) {
             }
         }, "pickUpBalls");
         sandboxSystems.push("pickUpBalls");
-        // TODO(@darzu): GHOST MODE
-        const DBG_PLAYER = false;
         if (DBG_PLAYER) {
             const ghost = createGhost(em);
             vec3.copy(ghost.position, [0, 1, -1.2]);
@@ -694,10 +681,9 @@ export async function initLD51Game(em, hosting) {
     startPirates();
     const startHealth = getCurrentHealth();
     {
-        em.registerSystem([], [InputsDef, LocalPlayerDef, TextDef, TimeDef], (es, res) => {
-            const player = em.findEntity(res.localPlayer.playerId, [PlayerDef]);
-            if (!player)
-                return;
+        em.registerSystem([], [InputsDef, TextDef, TimeDef], (es, res) => {
+            // const player = em.findEntity(res.localPlayer.playerId, [PlayerDef])!;
+            // if (!player) return;
             const currentHealth = getCurrentHealth();
             healthPercent = (currentHealth / startHealth) * 100;
             // console.log(`healthPercent: ${healthPercent}`);
@@ -858,8 +844,9 @@ function rotatePiratePlatform(p, rad) {
 const pitchSpeed = 0.000042;
 const numStartPirates = 2;
 let nextSpawn = 0;
-const tenSeconds = 1000 * 10; // TODO(@darzu): make 10 seconds
+const tenSeconds = 1000 * (DBG_PLAYER ? 3 : 10); // TODO(@darzu): make 10 seconds
 let spawnTimer = tenSeconds;
+const minSpawnTimer = 3000;
 async function startPirates() {
     const em = EM;
     // TODO(@darzu): HACK!
@@ -881,6 +868,7 @@ async function startPirates() {
                 spawnPirate(rad + Math.PI);
             }
             spawnTimer *= 0.95;
+            spawnTimer = Math.max(spawnTimer, minSpawnTimer);
         }
     }, "spawnPirates");
     sandboxSystems.push("spawnPirates");

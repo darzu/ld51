@@ -85,7 +85,7 @@ import {
 } from "./bullet.js";
 import { ControllableDef } from "./controllable.js";
 import { GlobalCursor3dDef } from "./cursor.js";
-import { createGhost } from "./game-sandbox.js";
+import { createGhost, GhostDef } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
 import { InRangeDef, InteractableDef } from "./interact.js";
 import { LifetimeDef } from "./lifetime.js";
@@ -115,6 +115,9 @@ import { TextDef } from "./ui.js";
   [ ] adjust ship size
   [ ] add dark ends
 */
+
+// TODO(@darzu): GHOST MODE
+const DBG_PLAYER = true;
 
 // TODO(@darzu): HACK. we need a better way to programmatically create sandbox games
 export const sandboxSystems: string[] = [];
@@ -546,37 +549,26 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   // assert(_player?.collider.shape === "AABB");
   // console.dir(ghost.collider.aabb);
 
-  // em.registerSystem(
-  //   null,
-  //   [InputsDef, CanvasDef],
-  //   (_, { inputs, htmlCanvas }) => {
-  //     const ballAABBWorld = createAABB();
-  //     const segAABBWorld = createAABB();
-  //     const worldLine = emptyLine();
+  em.registerSystem(
+    [GhostDef, WorldFrameDef, ColliderDef],
+    [InputsDef, CanvasDef],
+    (ps, { inputs, htmlCanvas }) => {
+      if (!ps.length) return;
 
-  //     assert(_player?.collider.shape === "AABB");
-  //     copyAABB(ballAABBWorld, _player.collider.aabb);
-  //     transformAABB(ballAABBWorld, _player.world.transform);
-  //     // TODO(@darzu): this sphere should live elsewhere..
-  //     const worldSphere: Sphere = {
-  //       org: _player.world.position,
-  //       rad: 1,
-  //       // rad: (ballAABBWorld.max[0] - ballAABBWorld.min[0]) * 0.5,
-  //     };
+      const ghost = ps[0];
 
-  //     if (inputs.lclick && htmlCanvas.hasFirstInteraction) {
-  //       // TODO(@darzu): fire?
-  //       console.log(`fire!`);
-  //       const firePos = worldSphere.org;
-  //       const fireDir = quat.create();
-  //       quat.copy(fireDir, _player.world.rotation);
-  //       const ballHealth = 2.0;
-  //       fireBullet(em, 1, firePos, fireDir, 0.05, 0.02, 3, ballHealth);
-  //     }
-  //   },
-  //   "runLD51Timber"
-  // );
-  // sandboxSystems.push("runLD51Timber");
+      if (inputs.lclick && htmlCanvas.hasFirstInteraction) {
+        // console.log(`fire!`);
+        const firePos = ghost.world.position;
+        const fireDir = quat.create();
+        quat.copy(fireDir, ghost.world.rotation);
+        const ballHealth = 2.0;
+        fireBullet(em, 1, firePos, fireDir, 0.05, 0.02, 3, ballHealth);
+      }
+    },
+    "ld51Ghost"
+  );
+  if (DBG_PLAYER) sandboxSystems.push("ld51Ghost");
 
   // TODO(@darzu): breakBullet
   em.registerSystem(
@@ -830,9 +822,6 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
     );
     sandboxSystems.push("pickUpBalls");
 
-    // TODO(@darzu): GHOST MODE
-    const DBG_PLAYER = false;
-
     if (DBG_PLAYER) {
       const ghost = createGhost(em);
       vec3.copy(ghost.position, [0, 1, -1.2]);
@@ -897,10 +886,10 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
   {
     em.registerSystem(
       [],
-      [InputsDef, LocalPlayerDef, TextDef, TimeDef],
+      [InputsDef, TextDef, TimeDef],
       (es, res) => {
-        const player = em.findEntity(res.localPlayer.playerId, [PlayerDef])!;
-        if (!player) return;
+        // const player = em.findEntity(res.localPlayer.playerId, [PlayerDef])!;
+        // if (!player) return;
 
         const currentHealth = getCurrentHealth();
         healthPercent = (currentHealth / startHealth) * 100;
@@ -1132,9 +1121,10 @@ const pitchSpeed = 0.000042;
 const numStartPirates = 2;
 let nextSpawn = 0;
 
-const tenSeconds = 1000 * 10; // TODO(@darzu): make 10 seconds
+const tenSeconds = 1000 * (DBG_PLAYER ? 3 : 10); // TODO(@darzu): make 10 seconds
 
 let spawnTimer = tenSeconds;
+const minSpawnTimer = 3000;
 
 async function startPirates() {
   const em: EntityManager = EM;
@@ -1165,6 +1155,7 @@ async function startPirates() {
           spawnPirate(rad + Math.PI);
         }
         spawnTimer *= 0.95;
+        spawnTimer = Math.max(spawnTimer, minSpawnTimer);
       }
     },
     "spawnPirates"
