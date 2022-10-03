@@ -395,6 +395,7 @@ export function registerRenderer(em: EntityManager) {
         cameraPos: cameraView.location,
         numPointLights: pointLights.length,
       });
+      // console.log(`pointLights.length: ${pointLights.length}`);
 
       renderer.updatePointLights(pointLights);
 

@@ -702,7 +702,14 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
       );
 
       em.registerSystem(
-        [BulletConstructDef, LinearVelocityDef, GravityDef, WorldFrameDef],
+        [
+          BulletConstructDef,
+          BulletDef,
+          ColorDef,
+          LinearVelocityDef,
+          GravityDef,
+          WorldFrameDef,
+        ],
         [PhysicsResultsDef],
         (es, res) => {
           for (let b of es) {
@@ -731,9 +738,12 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
                   if (w.id === targetSide.id || w.id === targetFrontBack.id) {
                     vec3.zero(b.linearVelocity);
                     vec3.zero(b.gravity);
-                    em.ensureComponentOn(b, DeletedDef);
-                    if (_numGoodBalls < MAX_GOODBALLS)
+                    if (_numGoodBalls < MAX_GOODBALLS) {
+                      em.ensureComponentOn(b, DeletedDef);
                       spawnGoodBall(b.world.position);
+                    } else {
+                      breakBullet(b);
+                    }
                   }
                 }
               }

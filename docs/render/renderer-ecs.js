@@ -239,6 +239,7 @@ export function registerRenderer(em) {
             cameraPos: cameraView.location,
             numPointLights: pointLights.length,
         });
+        // console.log(`pointLights.length: ${pointLights.length}`);
         renderer.updatePointLights(pointLights);
         renderer.submitPipelines(objs.map((o) => o.renderable.meshHandle), res.renderer.pipelines);
         if (objs.length && res.renderer.pipelines.length)

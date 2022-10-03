@@ -535,7 +535,14 @@ export async function initLD51Game(em, hosting) {
             const colRightMid = aabbCenter(vec3.create(), colRightWall.collider.aabb);
             const colFrontMid = aabbCenter(vec3.create(), colFrontWall.collider.aabb);
             const colBackMid = aabbCenter(vec3.create(), colBackWall.collider.aabb);
-            em.registerSystem([BulletConstructDef, LinearVelocityDef, GravityDef, WorldFrameDef], [PhysicsResultsDef], (es, res) => {
+            em.registerSystem([
+                BulletConstructDef,
+                BulletDef,
+                ColorDef,
+                LinearVelocityDef,
+                GravityDef,
+                WorldFrameDef,
+            ], [PhysicsResultsDef], (es, res) => {
                 for (let b of es) {
                     if (b.bulletConstruct.team !== 2)
                         continue;
@@ -560,9 +567,13 @@ export async function initLD51Game(em, hosting) {
                                 if (w.id === targetSide.id || w.id === targetFrontBack.id) {
                                     vec3.zero(b.linearVelocity);
                                     vec3.zero(b.gravity);
-                                    em.ensureComponentOn(b, DeletedDef);
-                                    if (_numGoodBalls < MAX_GOODBALLS)
+                                    if (_numGoodBalls < MAX_GOODBALLS) {
+                                        em.ensureComponentOn(b, DeletedDef);
                                         spawnGoodBall(b.world.position);
+                                    }
+                                    else {
+                                        breakBullet(b);
+                                    }
                                 }
                             }
                         }
