@@ -28,8 +28,8 @@ export const VertexStruct = createCyStruct({
 });
 export const MeshUniformStruct = createCyStruct({
     transform: "mat4x4<f32>",
-    aabbMin: "vec3<f32>",
-    aabbMax: "vec3<f32>",
+    // aabbMin: "vec3<f32>",
+    // aabbMax: "vec3<f32>",
     tint: "vec3<f32>",
     id: "u32",
     // TODO: is this a good idea?
@@ -38,11 +38,11 @@ export const MeshUniformStruct = createCyStruct({
     isUniform: true,
     serializer: (d, _, offsets_32, views) => {
         views.f32.set(d.transform, offsets_32[0]);
-        views.f32.set(d.aabbMin, offsets_32[1]);
-        views.f32.set(d.aabbMax, offsets_32[2]);
-        views.f32.set(d.tint, offsets_32[3]);
-        views.u32[offsets_32[4]] = d.id;
-        views.u32[offsets_32[5]] = d.flags;
+        // views.f32.set(d.aabbMin, offsets_32[1]);
+        // views.f32.set(d.aabbMax, offsets_32[2]);
+        views.f32.set(d.tint, offsets_32[1]);
+        views.u32[offsets_32[2]] = d.id;
+        views.u32[offsets_32[3]] = d.flags;
     },
 });
 export const FLAG_UNLIT = 1;
@@ -73,8 +73,8 @@ export function computeUniData(m) {
     const { min, max } = getAABBFromMesh(m);
     const uni = {
         transform: mat4.create(),
-        aabbMin: min,
-        aabbMax: max,
+        // aabbMin: min,
+        // aabbMax: max,
         tint: vec3.create(),
         id: 0,
         flags: 0,

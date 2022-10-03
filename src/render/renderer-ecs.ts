@@ -343,7 +343,7 @@ export function registerRenderer(em: EntityManager) {
 
       // TODO(@darzu): this is currently unused, and maybe should be dropped.
       // sort
-      objs.sort((a, b) => b.renderable.sortLayer - a.renderable.sortLayer);
+      // objs.sort((a, b) => b.renderable.sortLayer - a.renderable.sortLayer);
 
       // render
       // TODO(@darzu):
