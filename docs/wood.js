@@ -252,34 +252,36 @@ onInit((em) => {
                             w.woodState.splinterState) {
                             // TODO(@darzu): ugly
                             // TODO(@darzu): this generation stuff seems somewhat broken
-                            if (h.splinterBotGeneration ===
-                                w.woodState.splinterState.generation ||
-                                (h.splinterBotGeneration ===
-                                    w.woodState.splinterState.generation - 1 &&
-                                    w.woodState.splinterState.nextSplinterIdx <=
-                                        h.next.splinterBotIdx)) {
-                                removeSplinterEnd(h.next.splinterBotIdx, w.woodState);
-                            }
-                            else {
-                                // console.log(`skipping removal b/c generation mismatch!`);
-                            }
+                            // if (
+                            //   h.splinterBotGeneration ===
+                            //     w.woodState.splinterState.generation ||
+                            //   (h.splinterBotGeneration ===
+                            //     w.woodState.splinterState.generation - 1 &&
+                            //     w.woodState.splinterState.nextSplinterIdx <=
+                            //       h.next.splinterBotIdx)
+                            // ) {
+                            removeSplinterEnd(h.next.splinterBotIdx, w.woodState);
+                            // } else {
+                            //   // console.log(`skipping removal b/c generation mismatch!`);
+                            // }
                             h.next.splinterBotIdx = undefined;
                             h.next.splinterBotGeneration = undefined;
                             _numSplinterEnds--;
                         }
                         if (((_b = h.prev) === null || _b === void 0 ? void 0 : _b.splinterTopIdx) !== undefined &&
                             w.woodState.splinterState) {
-                            if (h.splinterTopGeneration ===
-                                w.woodState.splinterState.generation ||
-                                (h.splinterTopGeneration ===
-                                    w.woodState.splinterState.generation - 1 &&
-                                    w.woodState.splinterState.nextSplinterIdx <=
-                                        h.prev.splinterTopIdx)) {
-                                removeSplinterEnd(h.prev.splinterTopIdx, w.woodState);
-                            }
-                            else {
-                                // console.log(`skipping removal b/c generation mismatch!`);
-                            }
+                            // if (
+                            //   h.splinterTopGeneration ===
+                            //     w.woodState.splinterState.generation ||
+                            //   (h.splinterTopGeneration ===
+                            //     w.woodState.splinterState.generation - 1 &&
+                            //     w.woodState.splinterState.nextSplinterIdx <=
+                            //       h.prev.splinterTopIdx)
+                            // ) {
+                            removeSplinterEnd(h.prev.splinterTopIdx, w.woodState);
+                            // } else {
+                            //   // console.log(`skipping removal b/c generation mismatch!`);
+                            // }
                             h.prev.splinterTopIdx = undefined;
                             h.prev.splinterTopGeneration = undefined;
                             _numSplinterEnds--;

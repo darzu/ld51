@@ -95,6 +95,7 @@ export function createRenderer(
         count: MAX_PIPELINES + 1, // start of execution + after each pipeline
       })
     : null;
+  console.log(`timestamp-query: ${!!timestampQuerySet}`);
 
   const resources = createCyResources(CY, shaders, device);
   const cyKindToNameToRes = resources.kindToNameToRes;
