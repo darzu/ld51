@@ -285,6 +285,8 @@ export function registerUpdateRendererWorldFrames(em: EntityManager) {
   );
 }
 
+const _lastMeshHandlePos = new Map<number, vec3>();
+
 export function registerRenderer(em: EntityManager) {
   em.registerSystem(
     [RendererWorldFrameDef, RenderableDef],
@@ -299,11 +301,16 @@ export function registerRenderer(em: EntityManager) {
       for (let o of objs) {
         if (RenderDataStdDef.isOn(o)) {
           // color / tint
+          let tintChange = false;
+          let prevTint = vec3.copy(tempVec3(), o.renderDataStd.tint);
           if (ColorDef.isOn(o)) {
             vec3.copy(o.renderDataStd.tint, o.color);
           }
           if (TintsDef.isOn(o)) {
             applyTints(o.tints, o.renderDataStd.tint);
+          }
+          if (vec3.sqrDist(prevTint, o.renderDataStd.tint) > 0.01) {
+            tintChange = true;
           }
 
           // TODO(@darzu): actually we only set this at creation now so that
@@ -312,11 +319,24 @@ export function registerRenderer(em: EntityManager) {
           // o.renderDataStd.id = o.renderable.meshHandle.mId;
 
           // transform
-          mat4.copy(o.renderDataStd.transform, o.rendererWorldFrame.transform);
-          res.renderer.renderer.updateStdUniform(
-            o.renderable.meshHandle,
-            o.renderDataStd
-          );
+          // TODO(@darzu): hACK! ONLY UPDATE UNIFORM IF WE"VE MOVED
+          let lastPos = _lastMeshHandlePos.get(o.renderable.meshHandle.mId);
+          const thisPos = o.rendererWorldFrame.position;
+          if (tintChange || !lastPos || vec3.sqrDist(lastPos, thisPos) > 0.01) {
+            mat4.copy(
+              o.renderDataStd.transform,
+              o.rendererWorldFrame.transform
+            );
+            res.renderer.renderer.updateStdUniform(
+              o.renderable.meshHandle,
+              o.renderDataStd
+            );
+            if (!lastPos) {
+              lastPos = vec3.create();
+              _lastMeshHandlePos.set(o.renderable.meshHandle.mId, lastPos);
+            }
+            vec3.copy(lastPos, thisPos);
+          }
         } else if (RenderDataOceanDef.isOn(o)) {
           // color / tint
           if (ColorDef.isOn(o)) {
