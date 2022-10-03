@@ -405,7 +405,7 @@ function addSplinterEnd(seg, wood, top) {
     if (wood.splinterState.nextSplinterIdx >= wood.splinterState.maxNumSplinters) {
         wood.splinterState.nextSplinterIdx = 0;
         wood.splinterState.generation++;
-        console.log(`splinter gen: ${wood.splinterState.generation}`);
+        // console.log(`splinter gen: ${wood.splinterState.generation}`);
     }
     return sIdx;
     // return splinter;

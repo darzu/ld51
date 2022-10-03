@@ -313,7 +313,13 @@ export class EntityManager {
             callback,
             name,
         });
-        this.stats[name] = { calls: 0, queries: 0, callTime: 0, queryTime: 0 };
+        this.stats[name] = {
+            calls: 0,
+            queries: 0,
+            callTime: 0,
+            maxCallTime: 0,
+            queryTime: 0,
+        };
         // update query cache:
         //  pre-compute entities for this system for quicker queries; these caches will be maintained
         //  by add/remove/ensure component calls
@@ -366,7 +372,9 @@ export class EntityManager {
             s.callback(es, rs);
             let afterCall = performance.now();
             this.stats[s.name].calls++;
-            this.stats[s.name].callTime += afterCall - afterQuery;
+            const thisCallTime = afterCall - afterQuery;
+            this.stats[s.name].callTime += thisCallTime;
+            this.stats[s.name].maxCallTime = Math.max(this.stats[s.name].maxCallTime, thisCallTime);
         }
     }
     callOneShotSystems() {
@@ -376,14 +384,17 @@ export class EntityManager {
             if (!s.cs.every((c) => c.name in s.e))
                 return;
             const afterOneShotQuery = performance.now();
-            this.stats["__oneShots"].queries += 1;
-            this.stats["__oneShots"].queryTime += afterOneShotQuery - beforeOneShots;
+            const stats = this.stats["__oneShots"];
+            stats.queries += 1;
+            stats.queryTime += afterOneShotQuery - beforeOneShots;
             calledSystems.add(s.name);
             // TODO(@darzu): how to handle async callbacks and their timing?
             s.callback(s.e);
             const afterOneShotCall = performance.now();
-            this.stats["__oneShots"].calls += 1;
-            this.stats["__oneShots"].callTime += afterOneShotCall - afterOneShotQuery;
+            stats.calls += 1;
+            const thisCallTime = afterOneShotCall - afterOneShotQuery;
+            stats.callTime += thisCallTime;
+            stats.maxCallTime = Math.max(stats.maxCallTime, thisCallTime);
         });
         for (let name of calledSystems) {
             this.oneShotSystems.delete(name);
@@ -429,6 +440,7 @@ export class EntityManager {
             calls: 0,
             queries: 0,
             callTime: 0,
+            maxCallTime: 0,
             queryTime: 0,
         };
         return new Promise((resolve, reject) => {

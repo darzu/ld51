@@ -542,7 +542,7 @@ function addSplinterEnd(seg: BoardSeg, wood: WoodState, top: boolean): number {
   ) {
     wood.splinterState.nextSplinterIdx = 0;
     wood.splinterState.generation++;
-    console.log(`splinter gen: ${wood.splinterState.generation}`);
+    // console.log(`splinter gen: ${wood.splinterState.generation}`);
   }
 
   return sIdx;
