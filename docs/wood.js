@@ -104,7 +104,7 @@ onInit((em) => {
                                     const dmg = Math.min(woodHealth.health, ball.bullet.health) + 0.001;
                                     woodHealth.health -= dmg;
                                     ball.bullet.health -= dmg;
-                                    // TODO(@darzu): HUGE HACK
+                                    // TODO(@darzu): HUGE HACK to detect hitting a pirate ship
                                     if (dmg > 0 &&
                                         mesh.dbgName === "pirateShip" &&
                                         ball.bullet.team === 1) {
@@ -155,6 +155,7 @@ export const SplinterParticleDef = EM.defineComponent("splinter", () => {
     return {};
 });
 const splinterPools = new Map();
+export let _numSplinterEnds = 0;
 onInit((em) => {
     em.registerSystem([WoodStateDef, WorldFrameDef, WoodHealthDef, RenderableDef, ColorDef], [RendererDef], async (es, res) => {
         // TODO(@darzu):
@@ -218,6 +219,7 @@ onInit((em) => {
                                 end2.renderDataStd.id = meshHandle.mId;
                             });
                             h.splinterBot = endBot;
+                            _numSplinterEnds++;
                         }
                         if (h.next && !h.next.broken) {
                             const endTop = createSplinterEnd(seg, mesh, true, seg.width, seg.depth);
@@ -229,6 +231,7 @@ onInit((em) => {
                                 end2.renderDataStd.id = meshHandle.mId;
                             });
                             h.splinterTop = endTop;
+                            _numSplinterEnds++;
                         }
                         if ((_a = h.next) === null || _a === void 0 ? void 0 : _a.splinterBot) {
                             em.whenEntityHas((_b = h.next) === null || _b === void 0 ? void 0 : _b.splinterBot, RenderableDef).then((nextEnd) => {
@@ -236,6 +239,7 @@ onInit((em) => {
                                 nextEnd.renderable.enabled = false;
                             });
                             h.next.splinterBot = undefined;
+                            _numSplinterEnds--;
                         }
                         if ((_c = h.prev) === null || _c === void 0 ? void 0 : _c.splinterTop) {
                             em.whenEntityHas((_d = h.prev) === null || _d === void 0 ? void 0 : _d.splinterTop, RenderableDef).then((prevEnd) => {
@@ -243,6 +247,7 @@ onInit((em) => {
                                 prevEnd.renderable.enabled = false;
                             });
                             h.prev.splinterTop = undefined;
+                            _numSplinterEnds--;
                         }
                     }
                 });

@@ -74,6 +74,7 @@ import {
   WoodAssetsDef,
   WoodHealthDef,
   WoodStateDef,
+  _numSplinterEnds,
 } from "../wood.js";
 import { yawpitchToQuat } from "../yawpitch.js";
 import { AssetsDef, BLACK } from "./assets.js";
@@ -902,7 +903,12 @@ export async function initLD51Game(em: EntityManager, hosting: boolean) {
           1
         )}, Kills ${pirateKills}, !${elapsedPer}`;
 
-        res.text.lowerText = `WASD+Shift; left click to pick up cannon balls and fire the cannons. Survive! They attack like clockwork.`;
+        if (DBG_PLAYER) {
+          // TODO(@darzu): IMPL
+          res.text.lowerText = `splinterEnds: ${_numSplinterEnds}`;
+        } else {
+          res.text.lowerText = `WASD+Shift; left click to pick up cannon balls and fire the cannons. Survive! They attack like clockwork.`;
+        }
 
         if (healthPercent < 20) {
           alert(

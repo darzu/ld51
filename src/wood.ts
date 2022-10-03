@@ -178,7 +178,7 @@ onInit((em) => {
                     woodHealth.health -= dmg;
                     ball.bullet.health -= dmg;
 
-                    // TODO(@darzu): HUGE HACK
+                    // TODO(@darzu): HUGE HACK to detect hitting a pirate ship
                     if (
                       dmg > 0 &&
                       mesh.dbgName === "pirateShip" &&
@@ -239,6 +239,8 @@ export const SplinterParticleDef = EM.defineComponent("splinter", () => {
 });
 
 const splinterPools = new Map<string, SplinterPool>();
+
+export let _numSplinterEnds = 0;
 
 onInit((em: EntityManager) => {
   em.registerSystem(
@@ -323,6 +325,7 @@ onInit((em: EntityManager) => {
                   end2.renderDataStd.id = meshHandle.mId;
                 });
                 h.splinterBot = endBot;
+                _numSplinterEnds++;
               }
 
               if (h.next && !h.next.broken) {
@@ -341,6 +344,7 @@ onInit((em: EntityManager) => {
                   end2.renderDataStd.id = meshHandle.mId;
                 });
                 h.splinterTop = endTop;
+                _numSplinterEnds++;
               }
 
               if (h.next?.splinterBot) {
@@ -351,6 +355,7 @@ onInit((em: EntityManager) => {
                   }
                 );
                 h.next.splinterBot = undefined;
+                _numSplinterEnds--;
               }
 
               if (h.prev?.splinterTop) {
@@ -361,6 +366,7 @@ onInit((em: EntityManager) => {
                   }
                 );
                 h.prev.splinterTop = undefined;
+                _numSplinterEnds--;
               }
             }
           });

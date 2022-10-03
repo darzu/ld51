@@ -24,7 +24,7 @@ import { RendererDef, RenderableConstructDef, RenderDataStdDef, } from "../rende
 import { tempMat4, tempVec3 } from "../temp-pool.js";
 import { assert } from "../test.js";
 import { TimeDef } from "../time.js";
-import { createEmptyMesh, createTimberBuilder, createWoodHealth, getBoardsFromMesh, registerDestroyPirateHandler, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, } from "../wood.js";
+import { createEmptyMesh, createTimberBuilder, createWoodHealth, getBoardsFromMesh, registerDestroyPirateHandler, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, _numSplinterEnds, } from "../wood.js";
 import { AssetsDef, BLACK } from "./assets.js";
 import { breakBullet, BulletConstructDef, BulletDef, fireBullet, } from "./bullet.js";
 import { ControllableDef } from "./controllable.js";
@@ -690,7 +690,13 @@ export async function initLD51Game(em, hosting) {
             const elapsed = nextSpawn - res.time.time;
             const elapsedPer = Math.min(Math.ceil((elapsed / spawnTimer) * 10), 10);
             res.text.upperText = `Hull %${healthPercent.toFixed(1)}, Kills ${pirateKills}, !${elapsedPer}`;
-            res.text.lowerText = `WASD+Shift; left click to pick up cannon balls and fire the cannons. Survive! They attack like clockwork.`;
+            if (DBG_PLAYER) {
+                // TODO(@darzu): IMPL
+                res.text.lowerText = `splinterEnds: ${_numSplinterEnds}`;
+            }
+            else {
+                res.text.lowerText = `WASD+Shift; left click to pick up cannon balls and fire the cannons. Survive! They attack like clockwork.`;
+            }
             if (healthPercent < 20) {
                 alert(`You've been sunk! You killed ${pirateKills} and lasted ${(res.time.time / 1000).toFixed(1)} seconds. Thanks for playing! Refresh to try again.`);
             }
