@@ -21,7 +21,7 @@ import { PartyDef } from "../game/party.js";
 import { PointLightDef } from "./lights.js";
 import { computeOceanUniData, } from "./pipelines/std-ocean.js";
 import { assert } from "../test.js";
-import { VERBOSE_LOG } from "../flags.js";
+import { DONT_SMOOTH_WORLD_FRAME, VERBOSE_LOG } from "../flags.js";
 const BLEND_SIMULATION_FRAMES_STRATEGY = "none";
 export const RenderableConstructDef = EM.defineComponent("renderableConstruct", (meshOrProto, enabled = true, sortLayer = 0, mask, poolKind = "std") => {
     const r = {
@@ -89,6 +89,12 @@ export function registerUpdateSmoothedWorldFrames(em) {
     em.registerSystem([RenderableConstructDef, TransformDef], [], (objs, res) => {
         _hasRendererWorldFrame.clear();
         for (const o of objs) {
+            // TODO(@darzu): PERF HACK!
+            if (DONT_SMOOTH_WORLD_FRAME) {
+                em.ensureComponentOn(o, SmoothedWorldFrameDef);
+                em.ensureComponentOn(o, PrevSmoothedWorldFrameDef);
+                continue;
+            }
             updateSmoothedWorldFrame(em, o);
         }
     }, "updateSmoothedWorldFrames");
@@ -133,6 +139,11 @@ export function registerUpdateRendererWorldFrames(em) {
     em.registerSystem([SmoothedWorldFrameDef, PrevSmoothedWorldFrameDef], [], (objs) => {
         for (let o of objs) {
             em.ensureComponentOn(o, RendererWorldFrameDef);
+            // TODO(@darzu): HACK!
+            if (DONT_SMOOTH_WORLD_FRAME) {
+                o.rendererWorldFrame = o.world;
+                continue;
+            }
             switch (BLEND_SIMULATION_FRAMES_STRATEGY) {
                 case "interpolate":
                     interpolateFrames(_simulationAlpha, o.rendererWorldFrame, o.prevSmoothedWorldFrame, o.smoothedWorldFrame);

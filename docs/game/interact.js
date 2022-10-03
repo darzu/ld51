@@ -4,6 +4,7 @@ import { vec3 } from "../gl-matrix.js";
 import { MeDef } from "../net/components.js";
 import { PhysicsResultsDef, WorldFrameDef, } from "../physics/nonintersection.js";
 import { clearTint, setTint, TintsDef } from "../color-ecs.js";
+import { DeletedDef } from "../delete.js";
 export const InteractableDef = EM.defineComponent("interaction", (colliderId) => ({
     // TODO(@darzu): components having pointers to entities should be
     //  handled better
@@ -24,6 +25,9 @@ export function registerInteractionSystem(em) {
             return map;
         }, new Map());
         for (let interactable of interactables) {
+            if (DeletedDef.isOn(interactable))
+                // TODO(@darzu): HACK this shouldn't be needed
+                continue;
             if (InRangeDef.isOn(interactable)) {
                 em.removeComponent(interactable.id, InRangeDef);
             }
@@ -34,9 +38,11 @@ export function registerInteractionSystem(em) {
         const interactableColliderId = ((_a = resources.physicsResults.collidesWith.get(player.id)) !== null && _a !== void 0 ? _a : []).find((id) => interactablesMap.has(id));
         if (interactableColliderId) {
             const interactable = interactablesMap.get(interactableColliderId);
-            em.ensureComponentOn(interactable, InRangeDef);
-            em.ensureComponentOn(interactable, TintsDef);
-            setTint(interactable.tints, INTERACTION_TINT_NAME, INTERACTION_TINT);
+            if (!DeletedDef.isOn(interactable)) {
+                em.ensureComponentOn(interactable, InRangeDef);
+                em.ensureComponentOn(interactable, TintsDef);
+                setTint(interactable.tints, INTERACTION_TINT_NAME, INTERACTION_TINT);
+            }
         }
     }, "interaction");
 }

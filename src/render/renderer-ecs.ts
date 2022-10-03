@@ -1,4 +1,4 @@
-import { EntityManager, EM, Entity } from "../entity-manager.js";
+import { EntityManager, EM, Entity, EntityW } from "../entity-manager.js";
 import { applyTints, TintsDef } from "../color-ecs.js";
 import { CameraViewDef } from "../camera.js";
 import { mat4, quat, vec3 } from "../gl-matrix.js";
@@ -19,7 +19,7 @@ import { CanvasDef } from "../canvas.js";
 import { FORCE_WEBGL } from "../main.js";
 import { createRenderer } from "./renderer-webgpu.js";
 import { CyPipelinePtr, CyTexturePtr } from "./gpu-registry.js";
-import { createFrame } from "../physics/nonintersection.js";
+import { createFrame, WorldFrameDef } from "../physics/nonintersection.js";
 import { tempVec3 } from "../temp-pool.js";
 import { isMeshHandle, MeshHandle } from "./mesh-pool.js";
 import { Mesh } from "./mesh.js";
@@ -40,7 +40,7 @@ import {
   OceanUniTS,
 } from "./pipelines/std-ocean.js";
 import { assert } from "../test.js";
-import { VERBOSE_LOG } from "../flags.js";
+import { DONT_SMOOTH_WORLD_FRAME, VERBOSE_LOG } from "../flags.js";
 
 const BLEND_SIMULATION_FRAMES_STRATEGY: "interpolate" | "extrapolate" | "none" =
   "none";
@@ -178,6 +178,13 @@ export function registerUpdateSmoothedWorldFrames(em: EntityManager) {
       _hasRendererWorldFrame.clear();
 
       for (const o of objs) {
+        // TODO(@darzu): PERF HACK!
+        if (DONT_SMOOTH_WORLD_FRAME) {
+          em.ensureComponentOn(o, SmoothedWorldFrameDef);
+          em.ensureComponentOn(o, PrevSmoothedWorldFrameDef);
+          continue;
+        }
+
         updateSmoothedWorldFrame(em, o);
       }
     },
@@ -245,6 +252,13 @@ export function registerUpdateRendererWorldFrames(em: EntityManager) {
     (objs) => {
       for (let o of objs) {
         em.ensureComponentOn(o, RendererWorldFrameDef);
+
+        // TODO(@darzu): HACK!
+        if (DONT_SMOOTH_WORLD_FRAME) {
+          (o as any).rendererWorldFrame = (o as any).world;
+          continue;
+        }
+
         switch (BLEND_SIMULATION_FRAMES_STRATEGY) {
           case "interpolate":
             interpolateFrames(

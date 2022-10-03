@@ -4,4 +4,5 @@ export const VERBOSE_LOG = false;
 export const DISABLE_GERSTNER = true;
 export const VERBOSE_MESH_POOL_STATS = false;
 export const ASSET_LOG_VERT_CHANGES = false;
+export const DONT_SMOOTH_WORLD_FRAME = true; // TODO(@darzu): PERF HACK for single player
 //# sourceMappingURL=flags.js.map

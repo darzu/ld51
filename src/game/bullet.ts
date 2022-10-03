@@ -30,6 +30,7 @@ import { MusicDef } from "../music.js";
 import { randNormalVec3 } from "../utils-3d.js";
 import { SplinterParticleDef } from "../wood.js";
 import { tempVec3 } from "../temp-pool.js";
+import { assert } from "../test.js";
 
 export const BulletDef = EM.defineComponent(
   "bullet",
@@ -182,10 +183,11 @@ let _bulletPartPoolIsInit = false;
 let _bulletPartPoolNext = 0;
 
 function getNextBulletPartSet(): BulletPart[] {
+  assert(_bulletPartPoolNext < bulletPartPool.length, "bullet pool problem");
   const res = bulletPartPool[_bulletPartPoolNext];
 
   _bulletPartPoolNext += 1;
-  _bulletPartPoolNext = _bulletPartPoolNext % bulletPartPool.length;
+  if (_bulletPartPoolNext >= bulletPartPool.length) _bulletPartPoolNext = 0;
 
   return res;
 }
@@ -237,8 +239,8 @@ export async function breakBullet(
 
   // const { music, assets } = await em.whenResources(MusicDef, AssetsDef);
 
-  const set = getNextBulletPartSet();
-  for (let pe of set) {
+  const parts = getNextBulletPartSet();
+  for (let pe of parts) {
     if (!pe || !bullet || !bullet.world) continue;
     vec3.copy(pe.position, bullet.world.position);
     vec3.copy(pe.color, bullet.color);
