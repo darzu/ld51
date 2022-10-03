@@ -79,6 +79,9 @@ import { TextDef } from "./ui.js";
 
 /*
   TODO:
+  [ ] PERF: sub-meshes
+  [ ] PERF: bullets pool
+
   [ ] Player can walk on ship
   [ ] Player can fire cannon
   [ ] Show controls, describe objective

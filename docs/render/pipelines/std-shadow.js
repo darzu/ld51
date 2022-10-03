@@ -17,7 +17,9 @@ import { meshPoolPtr } from "./std-scene.js";
 // });
 // const shadowDepthTextureView = shadowDepthTexture.createView();
 // // TODO(@darzu): TODO
-export const shadowDepthTextures = range(3).map((i) => CY.createDepthTexture(`shadowTex${i}`, {
+// TODO(@darzu): Multiple shadow maps for multiple shadow casters
+const numShadowMaps = 1;
+export const shadowDepthTextures = range(numShadowMaps).map((i) => CY.createDepthTexture(`shadowTex${i}`, {
     size: [2048, 2048],
     format: "depth16unorm",
 }));
@@ -26,7 +28,7 @@ export const shadowDepthTextures = range(3).map((i) => CY.createDepthTexture(`sh
 //   format: "rgba8unorm",
 // });
 // TODO(@darzu): for better shadows, we should actually use front-face culling, not back-face
-export const shadowPipelines = range(3).map((i) => CY.createRenderPipeline(`shadowPipeline${i}`, {
+export const shadowPipelines = range(numShadowMaps).map((i) => CY.createRenderPipeline(`shadowPipeline${i}`, {
     globals: [pointLightsPtr],
     meshOpt: {
         pool: meshPoolPtr,

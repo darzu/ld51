@@ -183,6 +183,7 @@ let _bulletPartPoolIsInit = false;
 let _bulletPartPoolNext = 0;
 
 function getNextBulletPartSet(): BulletPart[] {
+  if (bulletPartPool.length === 0) return []; // not inited
   assert(_bulletPartPoolNext < bulletPartPool.length, "bullet pool problem");
   const res = bulletPartPool[_bulletPartPoolNext];
 
