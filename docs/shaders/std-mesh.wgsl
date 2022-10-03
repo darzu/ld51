@@ -20,7 +20,7 @@ fn vert_main(input: VertexInput) -> VertexOutput {
     
     let worldPos: vec4<f32> = meshUni.transform * vec4<f32>(position, 1.0);
 
-    let finalPos = worldPos;
+    // let finalPos = worldPos;
 
      // XY is in (-1, 1) space, Z is in (0, 1) space
     // let posFromLight = (scene.lightViewProjMatrix * worldPos).xyz;
@@ -31,8 +31,8 @@ fn vert_main(input: VertexInput) -> VertexOutput {
     //     posFromLight.z
     // );
 
-    output.worldPos = finalPos;
-    output.position = scene.cameraViewProjMatrix * finalPos;
+    output.worldPos = worldPos;
+    output.position = scene.cameraViewProjMatrix * worldPos;
     // TODO: use inverse-transpose matrix for normals as per: https://learnopengl.com/Lighting/Basic-Lighting
     output.normal = normalize(meshUni.transform * vec4<f32>(normal, 0.0)).xyz;
     output.color = color + meshUni.tint;
@@ -134,14 +134,14 @@ fn frag_main(input: VertexOutput) -> FragOut {
     }
     let litColor = input.color * (lightingColor + vec3(f32(unlit)));
 
-    let fogDensity: f32 = 0.02;
-    let fogGradient: f32 = 1.5;
-    // let fogDist: f32 = 0.1;
-    let fogDist: f32 = max(-input.worldPos.y - 10.0, 0.0);
-    // output.fogVisibility = 0.9;
-    let fogVisibility: f32 = clamp(exp(-pow(fogDist*fogDensity, fogGradient)), 0.0, 1.0);
+    // let fogDensity: f32 = 0.02;
+    // let fogGradient: f32 = 1.5;
+    // // let fogDist: f32 = 0.1;
+    // let fogDist: f32 = max(-input.worldPos.y - 10.0, 0.0);
+    // // output.fogVisibility = 0.9;
+    // let fogVisibility: f32 = clamp(exp(-pow(fogDist*fogDensity, fogGradient)), 0.0, 1.0);
 
-    let backgroundColor: vec3<f32> = vec3<f32>(0.6, 0.63, 0.6);
+    // let backgroundColor: vec3<f32> = vec3<f32>(0.6, 0.63, 0.6);
     // let backgroundColor: vec3<f32> = vec3<f32>(0.6, 0.63, 0.6);
     // let finalColor: vec3<f32> = mix(backgroundColor, gammaCorrected, fogVisibility);
     // let finalColor: vec3<f32> = gammaCorrected;

@@ -852,7 +852,7 @@ function rotatePiratePlatform(p, rad) {
     quat.rotateY(p.rotation, p.rotation, rad);
 }
 const pitchSpeed = 0.000042;
-const numStartPirates = 2;
+const numStartPirates = DBG_PLAYER ? 9 : 2;
 let nextSpawn = 0;
 const tenSeconds = 1000 * (DBG_PLAYER ? 3 : 10); // TODO(@darzu): make 10 seconds
 let spawnTimer = tenSeconds;
