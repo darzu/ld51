@@ -65,4 +65,3 @@ export const PredictDef = EM.defineComponent("predict", () => ({
 }));
 // Marker component for entities that have just been updated by the sync system
 export const RemoteUpdatesDef = EM.defineComponent("remoteUpdates", () => true);
-//# sourceMappingURL=components.js.map

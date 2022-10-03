@@ -102,4 +102,3 @@ export function triggerDownload(filename, body) {
         document.removeChild(fakeBtn);
     }, 500);
 }
-//# sourceMappingURL=download.js.map

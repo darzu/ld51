@@ -465,4 +465,3 @@ export async function initReboundSandbox(em, hosting) {
         }
     }, "sandboxSpawnBoxes");
 }
-//# sourceMappingURL=game-sandbox.js.map

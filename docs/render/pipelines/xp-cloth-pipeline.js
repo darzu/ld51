@@ -42,4 +42,3 @@ export const cmpClothPipelinePtr1 = CY.createComputePipeline("clothComp1", {
     shader: "xp-cloth-update",
     shaderComputeEntry: "main",
 });
-//# sourceMappingURL=xp-cloth-pipeline.js.map

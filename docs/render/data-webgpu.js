@@ -235,4 +235,3 @@ export function createCyDepthTexture(device, ptr, usage) {
         };
     }
 }
-//# sourceMappingURL=data-webgpu.js.map

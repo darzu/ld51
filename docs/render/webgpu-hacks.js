@@ -10,4 +10,3 @@ export const GPUBufferUsage = {
     UNIFORM: 64,
     VERTEX: 32,
 };
-//# sourceMappingURL=webgpu-hacks.js.map

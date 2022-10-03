@@ -16,4 +16,3 @@ onInit((em) => {
         }
     }, "applyGravity");
 });
-//# sourceMappingURL=gravity.js.map

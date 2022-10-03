@@ -260,4 +260,3 @@ fn frag_main(input: VertexOutput) -> @location(0) vec4<f32> {
 }
 `,
 });
-//# sourceMappingURL=xp-ropestick-pipeline.js.map

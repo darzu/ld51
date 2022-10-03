@@ -336,4 +336,3 @@ export function registerShipSystems(em) {
         }
     }, "easeRudder");
 }
-//# sourceMappingURL=player-ship.js.map

@@ -31,4 +31,3 @@ export function registerDeleteEntitiesSystem(em) {
 //    currently this is needed for entities that "own" other
 //    entities but might be deleted in several ways
 export const OnDeleteDef = EM.defineComponent("onDelete", (onDelete) => onDelete);
-//# sourceMappingURL=delete.js.map

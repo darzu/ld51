@@ -303,4 +303,3 @@ window.onload = () => {
 // for debugging
 window.dbg = dbg;
 window.EM = EM;
-//# sourceMappingURL=main.js.map

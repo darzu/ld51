@@ -950,4 +950,3 @@ export function createWoodHealth(w) {
         }),
     };
 }
-//# sourceMappingURL=wood.js.map

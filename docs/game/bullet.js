@@ -182,4 +182,3 @@ export async function breakBullet(bullet) {
     }
     em.ensureComponentOn(bullet, DeletedDef);
 }
-//# sourceMappingURL=bullet.js.map

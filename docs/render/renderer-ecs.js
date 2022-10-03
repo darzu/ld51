@@ -386,4 +386,3 @@ export function displayWebGPUError() {
       max-width: 600px;`;
     document.getElementsByTagName("body")[0].innerHTML = `<div style="${style}">This page requires WebGPU which isn't yet supported in your browser!<br>Or something else went wrong that was my fault.<br><br>U can try Chrome >106.<br><br>🙂</div>`;
 }
-//# sourceMappingURL=renderer-ecs.js.map

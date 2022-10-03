@@ -152,4 +152,3 @@ export function createMeshPool(opts) {
     }
     return pool;
 }
-//# sourceMappingURL=mesh-pool.js.map

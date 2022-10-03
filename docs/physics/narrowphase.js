@@ -388,4 +388,3 @@ private static bool IntersectsWhenProjected( Vector3[] aCorn, Vector3[] bCorn, V
     return longSpan < sumSpan; // Change this to <= if you want the case were they are touching but not overlapping, to count as an intersection
 }
 */
-//# sourceMappingURL=narrowphase.js.map

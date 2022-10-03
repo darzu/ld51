@@ -1042,4 +1042,3 @@ export function destroyPirateShip(id, timber) {
         }
     }
 }
-//# sourceMappingURL=game-ld51.js.map

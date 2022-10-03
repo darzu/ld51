@@ -95,4 +95,3 @@ export function registerDevSystems(em) {
         res.text.debugText = dbgTxt;
     }, "devConsole");
 }
-//# sourceMappingURL=console.js.map

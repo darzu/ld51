@@ -192,4 +192,3 @@ export function screenPosToRay(screenPos, cameraView) {
     };
     return r;
 }
-//# sourceMappingURL=modeler.js.map

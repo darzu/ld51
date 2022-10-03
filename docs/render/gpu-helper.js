@@ -115,4 +115,3 @@ fragSnippet, libs) {
     });
     return { pipeline, quad };
 }
-//# sourceMappingURL=gpu-helper.js.map

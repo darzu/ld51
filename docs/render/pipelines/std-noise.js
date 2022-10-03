@@ -261,4 +261,3 @@ export const noiseGridFrame = [
     //   getTexFromAttachment(octavesPipe1.output[0]),
     // ],
 ];
-//# sourceMappingURL=std-noise.js.map

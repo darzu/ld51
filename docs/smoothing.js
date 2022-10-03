@@ -41,4 +41,3 @@ export function computeNewError(old, curr, error) {
         quat.normalize(error, error);
     }
 }
-//# sourceMappingURL=smoothing.js.map

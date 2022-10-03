@@ -93,4 +93,3 @@ function meshFromAABB(aabb) {
     m.colors = [];
     return m;
 }
-//# sourceMappingURL=phys-debug.js.map

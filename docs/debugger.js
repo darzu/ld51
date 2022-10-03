@@ -264,4 +264,3 @@ g.cameraFollow.pitchOffset = ${target.cameraFollow.pitchOffset.toFixed(3)};
         console.log(out);
     },
 };
-//# sourceMappingURL=debugger.js.map

@@ -10,4 +10,3 @@ export function callInitFns(em) {
     hasInitPassed = true;
     onInitFns.forEach((fn) => fn(em));
 }
-//# sourceMappingURL=init.js.map

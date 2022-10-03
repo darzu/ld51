@@ -146,4 +146,3 @@ export async function initHyperspaceGame(em) {
         const star2 = spawnRandomDarkStar(res, vec3.fromValues(0, 0, 2000), STAR2_COLOR);
     }
 }
-//# sourceMappingURL=game-hyperspace.js.map

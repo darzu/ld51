@@ -289,4 +289,3 @@ export function createRenderer(canvas, device, context, shaders) {
     }
     return renderer;
 }
-//# sourceMappingURL=renderer-webgpu.js.map

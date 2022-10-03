@@ -114,4 +114,3 @@ function registerRenderViewController(em) {
         }
     }, "renderView");
 }
-//# sourceMappingURL=game-init.js.map

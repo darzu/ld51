@@ -62,4 +62,3 @@ function init() {
     }, 50);
     return canvas;
 }
-//# sourceMappingURL=canvas.js.map

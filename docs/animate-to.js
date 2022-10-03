@@ -64,4 +64,3 @@ onInit(() => {
         }
     }, "animateTo");
 });
-//# sourceMappingURL=animate-to.js.map

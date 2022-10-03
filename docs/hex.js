@@ -122,4 +122,3 @@ export function hexAvg(qr1, qr2) {
         (-qr1[0] - qr1[1] - qr2[0] - qr2[1]) * 0.5,
     ];
 }
-//# sourceMappingURL=hex.js.map

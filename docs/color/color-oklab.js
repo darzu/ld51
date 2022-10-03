@@ -39,4 +39,3 @@ export function LABToLRGB(c) {
     };
     return linSRGB;
 }
-//# sourceMappingURL=color-oklab.js.map

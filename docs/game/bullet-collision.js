@@ -52,4 +52,3 @@ export const raiseBulletEnemyShip = eventWizard("bullet-enemyShip", () => [[Bull
     const res = EM.getResources([AssetsDef, MusicDef]);
     breakEnemyShip(EM, enemyShip, res.assets.boat_broken, res.music);
 });
-//# sourceMappingURL=bullet-collision.js.map

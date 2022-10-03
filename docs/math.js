@@ -55,4 +55,3 @@ export function mathMapNEase(n, inMin, inMax, outMin, outMax, easeFn) {
         progress = easeFn(progress);
     return progress * (outMax - outMin) + outMin;
 }
-//# sourceMappingURL=math.js.map

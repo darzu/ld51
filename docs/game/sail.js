@@ -243,4 +243,3 @@ function sailForceAndSignedArea(sail, star) {
     vec3.normalize(sailNormal, sailNormal);
     return [vec3.scale(sailNormal, sailNormal, area), area];
 }
-//# sourceMappingURL=sail.js.map

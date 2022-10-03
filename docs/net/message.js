@@ -90,4 +90,3 @@ export function Ack(seq) {
     message.writeUint32(seq);
     return message;
 }
-//# sourceMappingURL=message.js.map

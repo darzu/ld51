@@ -68,6 +68,7 @@ import { outlineRender } from "../render/pipelines/std-outline.js";
 
 export function registerCommonSystems(em: EntityManager) {
   // registerNetSystems(em);
+
   registerInitCanvasSystem(em);
   registerUISystems(em);
   registerDevSystems(em);

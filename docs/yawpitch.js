@@ -19,4 +19,3 @@ export function yawpitchToQuat(out, yp) {
     quat.rotateX(out, out, yp.pitch);
     return out;
 }
-//# sourceMappingURL=yawpitch.js.map

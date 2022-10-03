@@ -462,4 +462,3 @@ export function eventWizard(name, entities, runEvent, opts) {
     };
     return raiseEvent;
 }
-//# sourceMappingURL=events.js.map

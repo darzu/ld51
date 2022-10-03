@@ -269,4 +269,3 @@ export const FireZoneDef = EM.defineComponent("firezone", () => { });
 export function spawnEnemyShip(loc, parentId, uvDir) {
     return createEnemyShip(loc, 0.0002 + jitter(0.0001), jitter(0.00005), uvDir, parentId);
 }
-//# sourceMappingURL=enemy-ship.js.map

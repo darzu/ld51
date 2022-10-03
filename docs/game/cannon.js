@@ -123,4 +123,3 @@ export function registerCannonSystems(em) {
         }
     }, "playerManCanon");
 }
-//# sourceMappingURL=cannon.js.map

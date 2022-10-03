@@ -67,4 +67,3 @@ export function createNoodleMesh(thickness, color) {
     scaleMesh3(m, [thickness, 0.0, thickness]);
     return normalizeMesh(m);
 }
-//# sourceMappingURL=noodles.js.map

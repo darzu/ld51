@@ -16,4 +16,3 @@ export async function registerGrappleDbgSystems(em) {
     em.ensureComponentOn(g, ColorDef, [0.1, 0.1, 0.1]);
     em.ensureComponentOn(g, RenderableConstructDef, res.assets.grappleGun.proto);
 }
-//# sourceMappingURL=grapple.js.map

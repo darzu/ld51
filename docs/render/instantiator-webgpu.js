@@ -871,4 +871,3 @@ export function onCanvasResizeAll(device, context, resources, canvasSize) {
         }
     }
 }
-//# sourceMappingURL=instantiator-webgpu.js.map

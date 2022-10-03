@@ -132,4 +132,3 @@ onInit((em) => {
         }
     }, "updateClothMesh");
 });
-//# sourceMappingURL=cloth.js.map

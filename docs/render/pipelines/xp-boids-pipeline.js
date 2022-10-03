@@ -131,4 +131,3 @@ const boidWindowUni = CY.createSingleton("boidWindow", {
     }),
 });
 export const { pipeline: boidCanvasMerge } = createRenderTextureToQuad("boidCanvasMerge", boidDepthTex, litTexturePtr, 0.1, 0.9, 0.1, 0.9);
-//# sourceMappingURL=xp-boids-pipeline.js.map

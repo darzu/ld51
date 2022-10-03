@@ -119,4 +119,3 @@ export function registerControllableSystems(em) {
         }
     }, "controllableCameraFollow");
 }
-//# sourceMappingURL=controllable.js.map

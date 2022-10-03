@@ -250,4 +250,3 @@ function createGerstnerWave(Q, A, D, w, phi) {
 // [ ] 3D->3D voronoi texture
 // [ ] 3D->2D voronoi seeds lookup texture
 // [ ] 3D normals texture ?
-//# sourceMappingURL=ocean.js.map

@@ -46,4 +46,3 @@ export function registerInteractionSystem(em) {
         }
     }, "interaction");
 }
-//# sourceMappingURL=interact.js.map

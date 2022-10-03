@@ -48,4 +48,3 @@ export const shadowPipelines = range(numShadowMaps).map((i) => CY.createRenderPi
   @fragment fn frag_main() { }
   `,
 }));
-//# sourceMappingURL=std-shadow.js.map

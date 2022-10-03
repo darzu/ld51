@@ -132,4 +132,3 @@ export function createTextureReader(data, size, outArity, format) {
         }
     }
 }
-//# sourceMappingURL=cpu-texture.js.map

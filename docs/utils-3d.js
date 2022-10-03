@@ -216,4 +216,3 @@ export function vec4RotateLeft(out) {
     out[3] = t;
     return out;
 }
-//# sourceMappingURL=utils-3d.js.map

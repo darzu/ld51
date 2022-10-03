@@ -160,4 +160,3 @@ export const renderOceanPipe = CY.createRenderPipeline("oceanRender", {
   ${shaderSet["std-ocean"].code}
   `,
 });
-//# sourceMappingURL=std-ocean.js.map

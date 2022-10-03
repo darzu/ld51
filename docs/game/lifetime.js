@@ -18,4 +18,3 @@ export function registerUpdateLifetimes(em) {
         }
     }, "updateLifetimes");
 }
-//# sourceMappingURL=lifetime.js.map

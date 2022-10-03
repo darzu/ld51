@@ -71,4 +71,3 @@ export function registerCursorSystems(em) {
         }
     }, "placeCursorAtScreenCenter");
 }
-//# sourceMappingURL=cursor.js.map

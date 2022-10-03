@@ -46,4 +46,3 @@ export function createSplinterPool(width, depth, length, color, numInPool) {
         getNext,
     };
 }
-//# sourceMappingURL=wood-splinters.js.map

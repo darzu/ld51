@@ -24,4 +24,3 @@ export function clearTint(tints, name) {
         vec3.set(current, 0, 0, 0);
     }
 }
-//# sourceMappingURL=color-ecs.js.map

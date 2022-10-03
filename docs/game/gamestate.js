@@ -104,4 +104,3 @@ export function registerGameStateSystems(em) {
         }
     }, "restartTimer");
 }
-//# sourceMappingURL=gamestate.js.map

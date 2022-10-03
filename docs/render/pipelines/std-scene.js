@@ -211,4 +211,3 @@ export const mainDepthTex = CY.createDepthTexture("canvasDepth", {
     format: "depth32float",
     // format: "depth24plus-stencil8",
 });
-//# sourceMappingURL=std-scene.js.map

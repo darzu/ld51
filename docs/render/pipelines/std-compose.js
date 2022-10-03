@@ -22,4 +22,3 @@ export function createGridComposePipelines(grid) {
     }
     return pipes;
 }
-//# sourceMappingURL=std-compose.js.map

@@ -201,4 +201,3 @@ export function registerMusicSystems(em) {
         }
     }, "musicStart");
 }
-//# sourceMappingURL=music.js.map

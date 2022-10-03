@@ -367,4 +367,3 @@ export function createCyStruct(desc, opts) {
     }
     return struct;
 }
-//# sourceMappingURL=gpu-struct.js.map

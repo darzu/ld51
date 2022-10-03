@@ -86,4 +86,3 @@ export async function randomizeMeshColors(e) {
         vec3.set(c, Math.random(), Math.random(), Math.random());
     res.renderer.renderer.updateMeshVertices(meshH, mesh);
 }
-//# sourceMappingURL=utils-game.js.map

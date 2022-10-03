@@ -831,4 +831,3 @@ function getUniqueVerts(mesh) {
     }
     return res;
 }
-//# sourceMappingURL=assets.js.map

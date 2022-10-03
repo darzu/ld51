@@ -54,4 +54,3 @@ export function registerMotionSmoothingSystems(em) {
         }
     }, "updateMotionSmoothing");
 }
-//# sourceMappingURL=motion-smoothing.js.map

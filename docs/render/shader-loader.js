@@ -49,4 +49,3 @@ onInit(async (em) => {
         throw `Failed to load shaders: ${failureReason}`;
     });
 });
-//# sourceMappingURL=shader-loader.js.map

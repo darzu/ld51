@@ -383,4 +383,3 @@ export function registerPlayerSystems(em) {
         }
     }, "playerLookingForShip");
 }
-//# sourceMappingURL=player.js.map

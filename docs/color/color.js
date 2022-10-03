@@ -429,4 +429,3 @@ export function makeRainbow(numColors) {
     // );
     return rainbow;
 }
-//# sourceMappingURL=color.js.map
