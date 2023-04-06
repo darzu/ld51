@@ -1,4 +1,5 @@
-import { hashCode } from "./util.js";
+import { DBG_ASSERT } from "./flags.js";
+import { assert, assertDbg, hashCode } from "./util.js";
 function isOneShotSystem(s) {
     return "e" in s;
 }
@@ -9,18 +10,29 @@ export class EntityManager {
     constructor() {
         this.entities = new Map();
         this.systems = new Map();
+        this.systemsById = new Map();
         this.oneShotSystems = new Map();
         this.components = new Map();
         this.serializers = new Map();
         this.ranges = {};
         this.defaultRange = "";
-        this.stats = {};
+        this.sysStats = {};
+        this.globalStats = {
+            // time spent maintaining the query caches
+            queryCacheTime: 0, // TODO(@darzu): IMPL
+        };
         this.loops = 0;
+        // TODO(@darzu): PERF. maybe the entities list should be maintained sorted. That
+        //    would make certain scan operations (like updating them on component add/remove)
+        //    cheaper. And perhaps better gameplay code too.
         this._systemsToEntities = new Map();
+        this._entitiesToSystems = new Map(); // TODO(@darzu): IMPL
         this._systemsToComponents = new Map();
         this._componentToSystems = new Map();
+        this._nextSystemId = 1;
         this.nextOneShotSuffix = 0;
         this.entities.set(0, { id: 0 });
+        // TODO(@darzu): maintain _entitiesToSystems for ent 0?
     }
     defineComponent(name, construct) {
         const id = nameToId(name);
@@ -102,39 +114,65 @@ export class EntityManager {
         if (e.id > 2 ** 15)
             console.warn(`We're halfway through our local entity ID space! Physics assumes IDs are < 2^16`);
         this.entities.set(e.id, e);
+        this._entitiesToSystems.set(e.id, []);
         return e;
     }
     registerEntity(id) {
-        if (id in this.entities)
-            throw `EntityManager already has id ${id}!`;
+        assert(!this.entities.has(id), `EntityManager already has id ${id}!`);
         /* TODO: should we do the check below but for all ranges?
         if (this.nextId <= id && id < this.maxId)
         throw `EntityManager cannot register foreign ids inside its local range; ${this.nextId} <= ${id} && ${id} < ${this.maxId}!`;
         */
         const e = { id: id };
         this.entities.set(e.id, e);
+        this._entitiesToSystems.set(e.id, []);
         return e;
     }
+    // TODO(@darzu): hacky, special components
+    isDeletedE(e) {
+        return "deleted" in e;
+    }
+    isDeadE(e) {
+        return "dead" in e;
+    }
+    isDeadC(e) {
+        return "dead" === e.name;
+    }
     addComponent(id, def, ...args) {
-        var _a;
         this.checkComponent(def);
         if (id === 0)
             throw `hey, use addSingletonComponent!`;
         const c = def.construct(...args);
         const e = this.entities.get(id);
         // TODO: this is hacky--EM shouldn't know about "deleted"
-        if ("deleted" in e) {
+        if (DBG_ASSERT && this.isDeletedE(e)) {
             console.error(`Trying to add component ${def.name} to deleted entity ${id}`);
         }
         if (def.name in e)
             throw `double defining component ${def.name} on ${e.id}!`;
         e[def.name] = c;
         // update query caches
+        // TODO(@darzu): PERF. need to measure time spent maintaining these caches.
+        // TODO(@darzu): IMPL dead
+        const eSystems = this._entitiesToSystems.get(e.id);
+        if (this.isDeadC(def)) {
+            // remove from every current system
+            eSystems.forEach((s) => {
+                const es = this._systemsToEntities.get(s);
+                // TODO(@darzu): perf. sorted removal
+                const indx = es.findIndex((v) => v.id === id);
+                if (indx >= 0)
+                    es.splice(indx, 1);
+            });
+            eSystems.length = 0;
+        }
         const systems = this._componentToSystems.get(def.name);
-        for (let name of systems !== null && systems !== void 0 ? systems : []) {
-            const allNeededCs = this._systemsToComponents.get(name);
-            if (allNeededCs === null || allNeededCs === void 0 ? void 0 : allNeededCs.every((n) => n in e)) {
-                (_a = this._systemsToEntities.get(name)) === null || _a === void 0 ? void 0 : _a.push(id);
+        for (let sysId of systems ?? []) {
+            const allNeededCs = this._systemsToComponents.get(sysId);
+            if (allNeededCs?.every((n) => n in e)) {
+                // TODO(@darzu): perf. sorted insert
+                this._systemsToEntities.get(sysId).push(e);
+                eSystems.push(sysId);
             }
         }
         return c;
@@ -213,24 +251,42 @@ export class EntityManager {
         return this.entities.has(id);
     }
     removeComponent(id, def) {
+        if (!this.tryRemoveComponent(id, def))
+            throw `Tried to remove absent component ${def.name} from entity ${id}`;
+    }
+    tryRemoveComponent(id, def) {
         const e = this.entities.get(id);
         if (def.name in e) {
             delete e[def.name];
         }
         else {
-            throw `Tried to remove absent component ${def.name} from entity ${id}`;
+            return false;
         }
         // update query cache
         const systems = this._componentToSystems.get(def.name);
-        for (let name of systems !== null && systems !== void 0 ? systems : []) {
+        for (let name of systems ?? []) {
             const es = this._systemsToEntities.get(name);
             if (es) {
-                const indx = es.findIndex((v) => v === id);
+                // TODO(@darzu): perf. sorted removal
+                const indx = es.findIndex((v) => v.id === id);
                 if (indx >= 0) {
                     es.splice(indx, 1);
                 }
             }
         }
+        if (this.isDeadC(def)) {
+            const eSystems = this._entitiesToSystems.get(id);
+            eSystems.length = 0;
+            for (let sysId of this.systemsById.keys()) {
+                const allNeededCs = this._systemsToComponents.get(sysId);
+                if (allNeededCs?.every((n) => n in e)) {
+                    // TODO(@darzu): perf. sorted insert
+                    this._systemsToEntities.get(sysId).push(e);
+                    eSystems.push(sysId);
+                }
+            }
+        }
+        return true;
     }
     keepOnlyComponents(id, cs) {
         let ent = this.entities.get(id);
@@ -259,11 +315,18 @@ export class EntityManager {
         }
         return res;
     }
+    // TODO(@darzu): PERF. cache these responses like we do systems?
+    // TODO(@darzu): PERF. evaluate all per-frame uses of this
     filterEntities(cs) {
         const res = [];
         if (cs === null)
             return res;
+        const inclDead = cs.some((c) => this.isDeadC(c)); // TODO(@darzu): HACK? for DeadDef
         for (let e of this.entities.values()) {
+            if (!inclDead && this.isDeadE(e))
+                continue;
+            if (e.id === 0)
+                continue; // TODO(@darzu): Entity 0 needs to be fixed..
             if (cs.every((c) => c.name in e)) {
                 res.push(e);
             }
@@ -279,7 +342,8 @@ export class EntityManager {
         }
         return res;
     }
-    filterEntitiesByKey(cs) {
+    dbgFilterEntitiesByKey(cs) {
+        // TODO(@darzu): respect "DeadDef" comp ?
         console.log("filterEntitiesByKey called--should only be called from console");
         const res = [];
         if (typeof cs === "string")
@@ -307,13 +371,18 @@ export class EntityManager {
         }
         if (this.systems.has(name))
             throw `System named ${name} already defined. Try explicitly passing a name`;
-        this.systems.set(name, {
+        const id = this._nextSystemId;
+        this._nextSystemId += 1;
+        const sys = {
             cs,
             rs,
             callback,
             name,
-        });
-        this.stats[name] = {
+            id,
+        };
+        this.systems.set(name, sys);
+        this.systemsById.set(id, sys);
+        this.sysStats[name] = {
             calls: 0,
             queries: 0,
             callTime: 0,
@@ -325,15 +394,20 @@ export class EntityManager {
         //  by add/remove/ensure component calls
         // TODO(@darzu): ability to toggle this optimization on/off for better debugging
         const es = this.filterEntities(cs);
-        this._systemsToEntities.set(name, es.map((e) => e.id));
+        this._systemsToEntities.set(id, [...es]);
         if (cs) {
             for (let c of cs) {
                 if (!this._componentToSystems.has(c.name))
-                    this._componentToSystems.set(c.name, [name]);
+                    this._componentToSystems.set(c.name, [id]);
                 else
-                    this._componentToSystems.get(c.name).push(name);
+                    this._componentToSystems.get(c.name).push(id);
             }
-            this._systemsToComponents.set(name, cs.map((c) => c.name));
+            this._systemsToComponents.set(id, cs.map((c) => c.name));
+        }
+        for (let e of es) {
+            const ss = this._entitiesToSystems.get(e.id);
+            assertDbg(ss);
+            ss.push(id);
         }
     }
     whenResources(...rs) {
@@ -351,30 +425,27 @@ export class EntityManager {
             throw `No system named ${name}`;
         let start = performance.now();
         // try looking up in the query cache
-        let es = [];
+        let es;
         if (s.cs) {
-            if (this._systemsToEntities.has(s.name))
-                es = this._systemsToEntities
-                    .get(s.name)
-                    .map((id) => this.entities.get(id));
-            else {
-                throw `System ${s.name} doesn't have a query cache!`;
-                // es = this.filterEntities(s.cs);
-            }
+            assertDbg(this._systemsToEntities.has(s.id), `System ${s.name} doesn't have a query cache!`);
+            es = this._systemsToEntities.get(s.id);
+        }
+        else {
+            es = [];
         }
         // TODO(@darzu): uncomment to debug query cache issues
         // es = this.filterEntities(s.cs);
-        const rs = this.getResources(s.rs);
+        const rs = this.getResources(s.rs); // TODO(@darzu): remove allocs here
         let afterQuery = performance.now();
-        this.stats[s.name].queries++;
-        this.stats[s.name].queryTime += afterQuery - start;
+        this.sysStats[s.name].queries++;
+        this.sysStats[s.name].queryTime += afterQuery - start;
         if (rs) {
             s.callback(es, rs);
             let afterCall = performance.now();
-            this.stats[s.name].calls++;
+            this.sysStats[s.name].calls++;
             const thisCallTime = afterCall - afterQuery;
-            this.stats[s.name].callTime += thisCallTime;
-            this.stats[s.name].maxCallTime = Math.max(this.stats[s.name].maxCallTime, thisCallTime);
+            this.sysStats[s.name].callTime += thisCallTime;
+            this.sysStats[s.name].maxCallTime = Math.max(this.sysStats[s.name].maxCallTime, thisCallTime);
         }
     }
     callOneShotSystems() {
@@ -384,7 +455,7 @@ export class EntityManager {
             if (!s.cs.every((c) => c.name in s.e))
                 return;
             const afterOneShotQuery = performance.now();
-            const stats = this.stats["__oneShots"];
+            const stats = this.sysStats["__oneShots"];
             stats.queries += 1;
             stats.queryTime += afterOneShotQuery - beforeOneShots;
             calledSystems.add(s.name);
@@ -402,9 +473,8 @@ export class EntityManager {
     }
     // TODO(@darzu): good or terrible name?
     whyIsntSystemBeingCalled(name) {
-        var _a;
         // TODO(@darzu): more features like check against a specific set of entities
-        const sys = (_a = this.systems.get(name)) !== null && _a !== void 0 ? _a : this.oneShotSystems.get(name);
+        const sys = this.systems.get(name) ?? this.oneShotSystems.get(name);
         if (!sys) {
             console.warn(`No systems found with name: '${name}'`);
             return;
@@ -426,7 +496,6 @@ export class EntityManager {
     // NOTE: if you're gonna change the types, change registerSystem first and just copy
     //  them down to here
     whenEntityHas(e, ...cs) {
-        var _a;
         // short circuit if we already have the components
         if (cs.every((c) => c.name in e))
             return Promise.resolve(e);
@@ -436,7 +505,7 @@ export class EntityManager {
         if (this.oneShotSystems.has(_name))
             throw `One-shot single system named ${_name} already defined.`;
         // use one bucket for all one shots. Change this if we want more granularity
-        this.stats["__oneShots"] = (_a = this.stats["__oneShots"]) !== null && _a !== void 0 ? _a : {
+        this.sysStats["__oneShots"] = this.sysStats["__oneShots"] ?? {
             calls: 0,
             queries: 0,
             callTime: 0,
@@ -456,3 +525,4 @@ export class EntityManager {
 }
 // TODO(@darzu): where to put this?
 export const EM = new EntityManager();
+//# sourceMappingURL=entity-manager.js.map

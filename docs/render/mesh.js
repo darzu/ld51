@@ -1,26 +1,24 @@
 import { ASSET_LOG_VERT_CHANGES } from "../flags.js";
 import { vec3, vec2, vec4 } from "../gl-matrix.js";
-import { getAABBFromPositions } from "../physics/broadphase.js";
-import { assert } from "../test.js";
+import { createAABB, getAABBFromPositions, } from "../physics/broadphase.js";
+import { assert } from "../util.js";
 import { arrayUnsortedEqual } from "../util.js";
 import { vec3Mid } from "../utils-3d.js";
 import { drawBall } from "../utils-game.js";
 export function meshStats(m) {
-    var _a;
-    return `${(_a = m.dbgName) !== null && _a !== void 0 ? _a : "??"}: v${m.pos.length}, t${m.tri.length}, q${m.quad.length}`;
+    return `${m.dbgName ?? "??"}: v${m.pos.length}, t${m.tri.length}, q${m.quad.length}`;
 }
 export function cloneMesh(m) {
-    var _a, _b, _c, _d;
     return {
         ...m,
         pos: m.pos.map((p) => vec3.clone(p)),
         tri: m.tri.map((p) => vec3.clone(p)),
         quad: m.quad.map((p) => vec4.clone(p)),
         colors: m.colors.map((p) => vec3.clone(p)),
-        lines: (_a = m.lines) === null || _a === void 0 ? void 0 : _a.map((p) => vec2.clone(p)),
-        uvs: (_b = m.uvs) === null || _b === void 0 ? void 0 : _b.map((p) => vec2.clone(p)),
-        tangents: (_c = m.tangents) === null || _c === void 0 ? void 0 : _c.map((p) => vec3.clone(p)),
-        normals: (_d = m.normals) === null || _d === void 0 ? void 0 : _d.map((p) => vec3.clone(p)),
+        lines: m.lines?.map((p) => vec2.clone(p)),
+        uvs: m.uvs?.map((p) => vec2.clone(p)),
+        tangents: m.tangents?.map((p) => vec3.clone(p)),
+        normals: m.normals?.map((p) => vec3.clone(p)),
         surfaceIds: m.surfaceIds
             ? [...m.surfaceIds]
             : undefined,
@@ -90,16 +88,16 @@ export function validateMesh(m) {
     //  normals?: vec3[]; // optional; one tangent per vertex
     //  // TODO(@darzu):
     //  dbgName?: string;
-    var _a, _b, _c, _d, _e;
-    const dbgName = `"${(_a = m.dbgName) !== null && _a !== void 0 ? _a : "???"}"`;
+    const dbgName = `"${m.dbgName ?? "???"}"`;
     // TODO(@darzu): Don't assert, return a boolean + reason!
+    assert(!m.quad.length || m.tri.length % 2 === 0, `mesh ${dbgName} must have even number of triangles!`);
     const faceCount = m.tri.length + m.quad.length;
     assert(m.colors.length === faceCount, `mesh ${dbgName} color count (${m.colors.length}) doesn't match face count (${faceCount})`);
-    assert(!m.surfaceIds || m.surfaceIds.length === faceCount, `mesh ${dbgName} surface id count (${(_b = m.surfaceIds) === null || _b === void 0 ? void 0 : _b.length}) doesn't match face count (${faceCount})`);
+    assert(!m.surfaceIds || m.surfaceIds.length === faceCount, `mesh ${dbgName} surface id count (${m.surfaceIds?.length}) doesn't match face count (${faceCount})`);
     const vertCount = m.pos.length;
-    assert(!m.uvs || m.uvs.length === vertCount, `mesh ${dbgName} uvs count (${(_c = m.uvs) === null || _c === void 0 ? void 0 : _c.length}) doesn't match vert count (${vertCount})`);
-    assert(!m.normals || m.normals.length === vertCount, `mesh ${dbgName} normals count (${(_d = m.normals) === null || _d === void 0 ? void 0 : _d.length}) doesn't match vert count (${vertCount})`);
-    assert(!m.tangents || m.tangents.length === vertCount, `mesh ${dbgName} tangents count (${(_e = m.tangents) === null || _e === void 0 ? void 0 : _e.length}) doesn't match vert count (${vertCount})`);
+    assert(!m.uvs || m.uvs.length === vertCount, `mesh ${dbgName} uvs count (${m.uvs?.length}) doesn't match vert count (${vertCount})`);
+    assert(!m.normals || m.normals.length === vertCount, `mesh ${dbgName} normals count (${m.normals?.length}) doesn't match vert count (${vertCount})`);
+    assert(!m.tangents || m.tangents.length === vertCount, `mesh ${dbgName} tangents count (${m.tangents?.length}) doesn't match vert count (${vertCount})`);
     for (let q of m.quad)
         for (let qi of q)
             assert(qi <= m.pos.length - 1, `invalid vert idx in quad: ${q} (vert count: ${m.pos.length})}`);
@@ -109,7 +107,6 @@ export function validateMesh(m) {
 }
 let _timeSpentOnNeighborIsh = 0;
 export function unshareProvokingVerticesWithMap(input) {
-    var _a;
     const pos = [...input.pos];
     const uvs = input.uvs ? [...input.uvs] : undefined;
     const tangents = input.tangents
@@ -132,7 +129,7 @@ export function unshareProvokingVerticesWithMap(input) {
         const before = performance.now();
         // TODO(@darzu): count quad neighbors, do provoking changes for quads w/ fewest neighbors first
         const vertIdxToFaceCount = [];
-        [...input.tri, ...input.quad].forEach((vs) => vs.forEach((vi) => { var _a; return (vertIdxToFaceCount[vi] = ((_a = vertIdxToFaceCount[vi]) !== null && _a !== void 0 ? _a : 0) + 1); }));
+        [...input.tri, ...input.quad].forEach((vs) => vs.forEach((vi) => (vertIdxToFaceCount[vi] = (vertIdxToFaceCount[vi] ?? 0) + 1)));
         input.quad.forEach((v, qi) => {
             quadIdxToNeighborIshCount[qi] = v // TSC can't handle the Float32Array/number[] ambiguity :(
                 .map((vi) => vertIdxToFaceCount[vi])
@@ -145,7 +142,7 @@ export function unshareProvokingVerticesWithMap(input) {
             countsList.sort();
             return countsList;
         })();
-        if ((_a = input.dbgName) === null || _a === void 0 ? void 0 : _a.includes("fang")) {
+        if (input.dbgName?.includes("fang")) {
             // console.dir(vertIdxToFaceCount);
             // console.dir(quadIdxToNeighborIshCount);
             // console.dir(uniqueNeighborIshCounts);
@@ -192,7 +189,6 @@ export function unshareProvokingVerticesWithMap(input) {
         }
     });
     const unshareProvokingForQuad = ([i0, i1, i2, i3], qi) => {
-        var _a;
         if (!provoking[i0]) {
             // First vertex is unused as a provoking vertex, so we'll use it for this triangle.
             provoking[i0] = true;
@@ -230,7 +226,7 @@ export function unshareProvokingVerticesWithMap(input) {
             quad[qi] = [i4, i1, i2, i3];
             // console.log(`duplicating: ${i0}!`);
             // TODO(@darzu): DBG
-            if ((_a = input.dbgName) === null || _a === void 0 ? void 0 : _a.includes("fang")) {
+            if (input.dbgName?.includes("fang")) {
                 console.log("new vert for fang ship");
             }
         }
@@ -291,7 +287,6 @@ function generateSurfaceIds(mesh) {
     return mesh.tri.map((_, i) => triIdToSurfaceId.get(i));
 }
 export function normalizeMesh(inM) {
-    var _a, _b;
     // TODO(@darzu): generate lines from surface IDs?
     const oldVertNum = inM.pos.length;
     const { mesh: outM, posMap, provoking, } = unshareProvokingVerticesWithMap(inM);
@@ -309,16 +304,16 @@ export function normalizeMesh(inM) {
     //   }
     // }
     if (ASSET_LOG_VERT_CHANGES && oldVertNum !== newVertNum) {
-        console.log(`mesh "${(_a = inM.dbgName) !== null && _a !== void 0 ? _a : "??"}" had vert change: ${oldVertNum} -> ${newVertNum}`);
+        console.log(`mesh "${inM.dbgName ?? "??"}" had vert change: ${oldVertNum} -> ${newVertNum}`);
     }
     return {
         // TODO(@darzu): always generate UVs?
         ...outM,
-        surfaceIds: (_b = outM.surfaceIds) !== null && _b !== void 0 ? _b : generateSurfaceIds(outM),
+        surfaceIds: outM.surfaceIds ?? generateSurfaceIds(outM),
     };
 }
 export function getAABBFromMesh(m) {
-    return getAABBFromPositions(m.pos);
+    return getAABBFromPositions(createAABB(), m.pos);
 }
 export function getCenterFromAABB(aabb) {
     return vec3Mid(vec3.create(), aabb.min, aabb.max);
@@ -386,12 +381,6 @@ function uniqueRefs(ts) {
     }
     return res;
 }
-export function quadToTris(q) {
-    return [
-        [q[0], q[1], q[2]],
-        [q[0], q[2], q[3]],
-    ];
-}
 // {
 //   // TODO(@darzu): DEBUG
 //   const f = createFabric(5);
@@ -433,8 +422,7 @@ export function getMeshAsGrid(m) {
     //    const coords = new Array(m.pos.length).fill(vec2.create());
     // TODO(@darzu): PERF. could be made more efficient by using one big typed array
     //  of vert indices w/ 4 slots for edges.
-    var _a, _b;
-    assert((m.quad.length > 0 || ((_b = (_a = m.lines) === null || _a === void 0 ? void 0 : _a.length) !== null && _b !== void 0 ? _b : 0) > 0) && m.tri.length === 0, "getMeshAsGrid only works for fully quad or line meshes");
+    assert((m.quad.length > 0 || (m.lines?.length ?? 0) > 0) && m.tri.length === 0, "getMeshAsGrid only works for fully quad or line meshes");
     // const refGrid = [
     //   [0, 1, 2],
     //   [3, 4, 5],
@@ -667,7 +655,7 @@ export function mergeMeshes(rs) {
         tangents: rs.every((r) => r.tangents) ? [] : undefined,
         normals: rs.every((r) => r.normals) ? [] : undefined,
         dbgName: rs.some((r) => r.dbgName)
-            ? rs.reduce((p, n, i) => { var _a; return (_a = p + "_" + (n === null || n === void 0 ? void 0 : n.dbgName)) !== null && _a !== void 0 ? _a : "mesh"; }, "")
+            ? rs.reduce((p, n, i) => p + "_" + n?.dbgName ?? "mesh", "")
             : undefined,
     };
     for (let r of rs) {
@@ -714,3 +702,4 @@ dbg.enableTransitionTime()
 
 register2DDebugViz("meshGrid");
 */
+//# sourceMappingURL=mesh.js.map

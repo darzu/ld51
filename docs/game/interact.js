@@ -16,7 +16,6 @@ const INTERACTION_TINT = vec3.fromValues(0.1, 0.2, 0.1);
 const INTERACTION_TINT_NAME = "interaction";
 export function registerInteractionSystem(em) {
     em.registerSystem([InteractableDef, WorldFrameDef], [LocalPlayerDef, MeDef, PhysicsResultsDef], (interactables, resources) => {
-        var _a;
         const player = em.findEntity(resources.localPlayer.playerId, [PlayerDef]);
         if (!player)
             return;
@@ -35,7 +34,7 @@ export function registerInteractionSystem(em) {
             clearTint(interactable.tints, INTERACTION_TINT_NAME);
         }
         // find an interactable within range of the player
-        const interactableColliderId = ((_a = resources.physicsResults.collidesWith.get(player.id)) !== null && _a !== void 0 ? _a : []).find((id) => interactablesMap.has(id));
+        const interactableColliderId = (resources.physicsResults.collidesWith.get(player.id) ?? []).find((id) => interactablesMap.has(id));
         if (interactableColliderId) {
             const interactable = interactablesMap.get(interactableColliderId);
             if (!DeletedDef.isOn(interactable)) {
@@ -46,3 +45,4 @@ export function registerInteractionSystem(em) {
         }
     }, "interaction");
 }
+//# sourceMappingURL=interact.js.map

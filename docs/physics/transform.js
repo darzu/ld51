@@ -21,9 +21,15 @@ export function copyFrame(out, frame) {
     quat.copy(out.rotation, frame.rotation);
     mat4.copy(out.transform, frame.transform);
 }
+export function identityFrame(out) {
+    vec3.zero(out.position);
+    vec3.copy(out.scale, vec3.ONES);
+    quat.identity(out.rotation);
+    mat4.identity(out.transform);
+}
 // TRANSFORM
 export const TransformDef = EM.defineComponent("transform", (t) => {
-    return t !== null && t !== void 0 ? t : mat4.create();
+    return t ?? mat4.create();
 });
 // POSITION
 export const PositionDef = EM.defineComponent("position", (p) => p || vec3.fromValues(0, 0, 0));
@@ -82,6 +88,7 @@ export function registerInitTransforms(em) {
 }
 export function registerUpdateLocalFromPosRotScale(em, suffix = "") {
     em.registerSystem(null, [], (objs) => {
+        // TODO(@darzu): PERF. Hacky custom query! Not cached n stuff.
         for (let o of em.entities.values()) {
             if (!o.id)
                 continue;
@@ -116,3 +123,4 @@ export function registerUpdateWorldFromLocalAndParent(em, suffix = "") {
         }
     }, "updateWorldFromLocalAndParent" + suffix);
 }
+//# sourceMappingURL=transform.js.map

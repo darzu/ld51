@@ -447,3 +447,4 @@ export function deltaE2000(lab1, lab2) {
     return Math.sqrt(dE);
     // Yay!!!
 }
+//# sourceMappingURL=color-lab.js.map

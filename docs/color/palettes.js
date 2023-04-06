@@ -20,3 +20,4 @@ export const ENDESGA16 = objMap({
 }, (val, name) => {
     return toV3(toFRGB(parseHex(val)));
 });
+//# sourceMappingURL=palettes.js.map

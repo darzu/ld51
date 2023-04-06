@@ -69,7 +69,7 @@ export const raiseManTurret = eventWizard("man-turret", () => [
     [TurretDef, CameraFollowDef, AuthorityDef],
 ], ([player, turret]) => {
     const localPlayer = EM.getResource(LocalPlayerDef);
-    if ((localPlayer === null || localPlayer === void 0 ? void 0 : localPlayer.playerId) === player.id) {
+    if (localPlayer?.playerId === player.id) {
         turret.cameraFollow.priority = 2;
         turret.authority.pid = player.authority.pid;
         turret.authority.seq++;
@@ -139,3 +139,4 @@ export function registerTurretSystems(em) {
         }
     }, "turretManUnman");
 }
+//# sourceMappingURL=turret.js.map

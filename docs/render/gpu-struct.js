@@ -1,6 +1,6 @@
 import { mat4, quat, vec2, vec3 } from "../gl-matrix.js";
 import { align, max, sum } from "../math.js";
-import { assert } from "../test.js";
+import { assert } from "../util.js";
 import { objMap } from "../util.js";
 // TABLES, CONSTS and TYPE-LEVEL HELPERS
 const WGSLScalars = ["bool", "i32", "u32", "f32", "f16"];
@@ -214,7 +214,7 @@ export function createCyStruct(desc, opts) {
         return n;
     }, Infinity);
     let offsets;
-    if (opts === null || opts === void 0 ? void 0 : opts.isCompact) {
+    if (opts?.isCompact) {
         offsets = sizes.reduce((p, n, i) => [...p, p[p.length - 1] + n], [0]);
         offsets.pop();
     }
@@ -225,11 +225,11 @@ export function createCyStruct(desc, opts) {
     assert(offsets && sizes.length === offsets.length, "sizes.length === offsets.length");
     const offsets_32 = offsets.map((o) => o >> 2);
     // TODO: hack
-    const structAlign = (opts === null || opts === void 0 ? void 0 : opts.hackArray)
+    const structAlign = opts?.hackArray
         ? max(alignments)
-        : (opts === null || opts === void 0 ? void 0 : opts.isUniform)
+        : opts?.isUniform
             ? 256
-            : (opts === null || opts === void 0 ? void 0 : opts.isCompact)
+            : opts?.isCompact
                 ? 4 // https://gpuweb.github.io/gpuweb/#vertex-formats
                 : max(alignments);
     const structSize = align(offsets[offsets.length - 1] + sizes[sizes.length - 1], structAlign);
@@ -276,7 +276,7 @@ export function createCyStruct(desc, opts) {
     // check custom serializer correctness
     // TODO(@darzu): option to disable this
     let serialize = serializeSlow;
-    if (opts === null || opts === void 0 ? void 0 : opts.serializer) {
+    if (opts?.serializer) {
         const dummy = createDummyStruct(desc);
         // run the baseline
         const slowRes = new Uint8Array(structSize);
@@ -314,7 +314,7 @@ export function createCyStruct(desc, opts) {
         return cloneStruct(desc, orig);
     }
     function wgsl(doAlign, locationStart) {
-        assert((opts === null || opts === void 0 ? void 0 : opts.isCompact) ? !doAlign : true, "Cannot use aligned WGSL struct w/ compact layout");
+        assert(opts?.isCompact ? !doAlign : true, "Cannot use aligned WGSL struct w/ compact layout");
         // Example output:
         // `
         // @location(0) position : vec3<f32>,
@@ -367,3 +367,4 @@ export function createCyStruct(desc, opts) {
     }
     return struct;
 }
+//# sourceMappingURL=gpu-struct.js.map

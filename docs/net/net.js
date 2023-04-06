@@ -163,8 +163,7 @@ function sendEventsToNet(net) {
 }
 // from https://gist.github.com/jed/982883#gistcomment-2403369
 export function registerNetSystems(em) {
-    var _a;
-    const peerName = (_a = em.getResource(PeerNameDef)) === null || _a === void 0 ? void 0 : _a.name;
+    const peerName = em.getResource(PeerNameDef)?.name;
     if (!peerName) {
         throw "Peer name not set before net initialized";
     }
@@ -177,3 +176,4 @@ export function registerNetSystems(em) {
     em.registerSystem(null, [EventsFromNetworkDef], getEventsFromNet(net), "getEventsFromNet");
     em.registerSystem(null, [EventsToNetworkDef], sendEventsToNet(net), "sendEventsToNet");
 }
+//# sourceMappingURL=net.js.map

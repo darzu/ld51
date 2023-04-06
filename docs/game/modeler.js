@@ -62,7 +62,7 @@ function registerObjClicker(em) {
                 }
             }
             // draw our ray
-            const rayDist = (firstHit === null || firstHit === void 0 ? void 0 : firstHit.dist) || 1000;
+            const rayDist = firstHit?.dist || 1000;
             const color = firstHit ? [0, 1, 0] : [1, 0, 0];
             const endPoint = vec3.add(vec3.create(), r.org, vec3.scale(tempVec3(), r.dir, rayDist));
             drawLine(r.org, endPoint, color);
@@ -192,3 +192,4 @@ export function screenPosToRay(screenPos, cameraView) {
     };
     return r;
 }
+//# sourceMappingURL=modeler.js.map

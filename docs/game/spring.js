@@ -50,7 +50,7 @@ export const SpringGridDef = EM.defineComponent("springGrid", (springType, rows,
         springType,
     };
 });
-export const ForceDef = EM.defineComponent("force", (v) => v !== null && v !== void 0 ? v : vec3.create());
+export const ForceDef = EM.defineComponent("force", (v) => v ?? vec3.create());
 EM.registerSerializerPair(ForceDef, (f, buf) => buf.writeVec3(f), (f, buf) => buf.readVec3(f));
 var Direction;
 (function (Direction) {
@@ -194,3 +194,4 @@ onInit((em) => {
         }
     }, "spring");
 });
+//# sourceMappingURL=spring.js.map

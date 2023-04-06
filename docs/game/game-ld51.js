@@ -2,13 +2,13 @@ import { CameraDef, CameraFollowDef } from "../camera.js";
 import { CanvasDef } from "../canvas.js";
 import { ColorDef } from "../color-ecs.js";
 import { ENDESGA16 } from "../color/palettes.js";
-import { DeletedDef } from "../delete.js";
+import { DeadDef } from "../delete.js";
 import { createRef } from "../em_helpers.js";
 import { EM } from "../entity-manager.js";
 import { vec3, quat, mat4 } from "../gl-matrix.js";
 import { InputsDef } from "../inputs.js";
 import { jitter } from "../math.js";
-import { MusicDef, randChordId } from "../music.js";
+import { AudioDef, randChordId } from "../audio.js";
 import { createAABB, copyAABB, updateAABBWithPoint, aabbCenter, } from "../physics/broadphase.js";
 import { ColliderDef } from "../physics/collider.js";
 import { AngularVelocityDef, LinearVelocityDef } from "../physics/motion.js";
@@ -20,57 +20,68 @@ import { stdRenderPipeline } from "../render/pipelines/std-mesh.js";
 import { outlineRender } from "../render/pipelines/std-outline.js";
 import { postProcess } from "../render/pipelines/std-post.js";
 import { shadowPipelines } from "../render/pipelines/std-shadow.js";
-import { RendererDef, RenderableConstructDef, RenderDataStdDef, } from "../render/renderer-ecs.js";
+import { RendererDef, RenderableConstructDef, RenderDataStdDef, RenderableDef, } from "../render/renderer-ecs.js";
 import { tempMat4, tempVec3 } from "../temp-pool.js";
-import { assert } from "../test.js";
+import { assert } from "../util.js";
 import { TimeDef } from "../time.js";
-import { createEmptyMesh, createTimberBuilder, createWoodHealth, getBoardsFromMesh, registerDestroyPirateHandler, reserveSplinterSpace, SplinterParticleDef, unshareProvokingForWood, WoodHealthDef, WoodStateDef, _numSplinterEnds, } from "../wood.js";
+import { createEmptyMesh, createTimberBuilder, createWoodHealth, getBoardsFromMesh, registerDestroyPirateHandler, reserveSplinterSpace, resetWoodHealth, resetWoodState, SplinterParticleDef, verifyUnsharedProvokingForWood, WoodHealthDef, WoodStateDef, } from "../wood.js";
 import { AssetsDef, BLACK } from "./assets.js";
 import { breakBullet, BulletConstructDef, BulletDef, fireBullet, } from "./bullet.js";
 import { ControllableDef } from "./controllable.js";
 import { createGhost, GhostDef } from "./game-sandbox.js";
 import { GravityDef } from "./gravity.js";
 import { InRangeDef, InteractableDef } from "./interact.js";
-import { LifetimeDef } from "./lifetime.js";
 import { createPlayer, LocalPlayerDef, PlayerDef } from "./player.js";
 import { TextDef } from "./ui.js";
+import { createIdxPool } from "../idx-pool.js";
 /*
   TODO:
   [ ] PERF: sub-meshes
-  [ ] PERF: bullets pool
+  [x] PERF: bullets pool
 
-  [ ] Player can walk on ship
-  [ ] Player can fire cannon
-  [ ] Show controls, describe objective
-  [ ] PERF: Splinters pool
-  [ ] PERF: splinter end pool
+  [x] Player can walk on ship
+  [x] Player can fire cannon
+  [x] Show controls, describe objective
+  [x] PERF: Splinters pool
+  [x] PERF: splinter end pool
   [ ] Planks can be repaired
-  [ ] Can destroy enemies
+  [x] Can destroy enemies
   [x] cannon ball can't destroy everything
-  [ ] cannon balls explode
-  [ ] cannon balls drop and can be picked up
-  [ ] Enemies spawn
-  [ ] PERF: pool enemy ships
-  [ ] PERF: board AABB check
-  [ ] ship total health check
-  [ ] Sound!
-  [ ] close ship
+  [x] cannon balls explode
+  [x] cannon balls drop and can be picked up
+  [x] Enemies spawn
+  [x] PERF: pool enemy ships
+  [x] PERF: board AABB check
+  [x] ship total health check
+  [x] Sound!
+  [x] close ship
 
   [ ] change wood colors
   [ ] adjust ship size
-  [ ] add dark ends
+  [ ] add dark/fog ends
+
+  [x] remove allocs in callSystem
+  [ ] reduce allocs in stepRenderer
+  [x] object pool friend bullets
+  [x] object pool enemy bullets
+  [x] object pool enemies
 */
-// TODO(@darzu): GHOST MODE
 const DBG_PLAYER = false;
+let pirateKills = 0;
+let healthPercent = 100;
+const MAX_GOODBALLS = 10;
+const pitchSpeed = 0.000042;
+const maxPirates = DBG_PLAYER ? 3 : 10;
+const numStartPirates = DBG_PLAYER ? maxPirates : 2;
+let nextSpawn = 0;
+const tenSeconds = 1000 * (DBG_PLAYER ? 3 : 10); // TODO(@darzu): make 10 seconds
+let spawnTimer = tenSeconds;
+const minSpawnTimer = 3000;
 // TODO(@darzu): HACK. we need a better way to programmatically create sandbox games
 export const sandboxSystems = [];
 export const LD51CannonDef = EM.defineComponent("ld51Cannon", () => {
     return {};
 });
-let pirateKills = 0;
-let healthPercent = 100;
-let _numGoodBalls = 0;
-const MAX_GOODBALLS = 10;
 export async function initLD51Game(em, hosting) {
     const camera = em.addSingletonComponent(CameraDef);
     camera.fov = Math.PI * 0.5;
@@ -291,7 +302,8 @@ export async function initLD51Game(em, hosting) {
     }
     _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
     const timberState = getBoardsFromMesh(_timberMesh);
-    unshareProvokingForWood(_timberMesh, timberState);
+    // unshareProvokingForWood(_timberMesh, timberState);
+    verifyUnsharedProvokingForWood(_timberMesh, timberState);
     // console.log(`before: ` + meshStats(_timberMesh));
     // const timberMesh = normalizeMesh(_timberMesh);
     // console.log(`after: ` + meshStats(timberMesh));
@@ -362,7 +374,63 @@ export async function initLD51Game(em, hosting) {
         }
         em.ensureComponentOn(cannon, LD51CannonDef);
     }
-    em.registerSystem([LD51CannonDef, WorldFrameDef, InRangeDef], [InputsDef, LocalPlayerDef, MusicDef], (cannons, res) => {
+    // TODO(@darzu): use a pool for goodballs
+    const GoodBallDef = EM.defineComponent("goodBall", (idx, interactBoxId) => ({
+        idx,
+        interactBoxId,
+    }));
+    const _goodBalls = [];
+    const _goodBallPool = createIdxPool(MAX_GOODBALLS);
+    function despawnGoodBall(e) {
+        em.ensureComponentOn(e, DeadDef);
+        if (RenderableDef.isOn(e))
+            e.renderable.hidden = true;
+        _goodBallPool.free(e.goodBall.idx);
+        e.dead.processed = true;
+    }
+    function spawnGoodBall(pos) {
+        const idx = _goodBallPool.next();
+        if (idx === undefined)
+            return;
+        let ball = _goodBalls[idx];
+        if (!ball) {
+            const newBall = em.newEntity();
+            em.ensureComponentOn(newBall, RenderableConstructDef, res.assets.ball.proto);
+            em.ensureComponentOn(newBall, ColorDef, vec3.clone(ENDESGA16.orange));
+            em.ensureComponentOn(newBall, PositionDef);
+            em.ensureComponentOn(newBall, LinearVelocityDef);
+            em.ensureComponentOn(newBall, GravityDef);
+            const interactBox = EM.newEntity();
+            const interactAABB = copyAABB(createAABB(), res.assets.ball.aabb);
+            vec3.scale(interactAABB.min, interactAABB.min, 2);
+            vec3.scale(interactAABB.max, interactAABB.max, 2);
+            EM.ensureComponentOn(interactBox, PhysicsParentDef, newBall.id);
+            EM.ensureComponentOn(interactBox, PositionDef, [0, 0, 0]);
+            EM.ensureComponentOn(interactBox, ColliderDef, {
+                shape: "AABB",
+                solid: false,
+                aabb: interactAABB,
+            });
+            em.ensureComponentOn(newBall, InteractableDef, interactBox.id);
+            // em.ensureComponentOn(ball, WorldFrameDef);
+            em.ensureComponentOn(newBall, GoodBallDef, idx, interactBox.id);
+            ball = newBall;
+            _goodBalls[idx] = newBall;
+        }
+        else {
+            if (RenderableDef.isOn(ball))
+                ball.renderable.hidden = false;
+            em.tryRemoveComponent(ball.id, DeadDef);
+            em.tryRemoveComponent(ball.id, PhysicsParentDef);
+            em.ensureComponentOn(ball, InteractableDef, ball.goodBall.interactBoxId);
+        }
+        vec3.copy(ball.position, pos);
+        vec3.copy(ball.gravity, [0, -3, 0]);
+        vec3.zero(ball.linearVelocity);
+        if (ScaleDef.isOn(ball))
+            vec3.copy(ball.scale, vec3.ONES);
+    }
+    em.registerSystem([LD51CannonDef, WorldFrameDef, InRangeDef], [InputsDef, LocalPlayerDef, AudioDef], (cannons, res) => {
         const player = em.findEntity(res.localPlayer.playerId, [PlayerDef]);
         if (!player)
             return;
@@ -379,10 +447,11 @@ export async function initLD51Game(em, hosting) {
                 vec3.add(bulletPos, bulletPos, bulletAxis);
                 fireBullet(em, 1, bulletPos, c.world.rotation, 0.05, 0.02, 3, ballHealth);
                 // remove player ball
-                const heldBall = EM.findEntity(player.player.holdingBall, []);
+                const heldBall = EM.findEntity(player.player.holdingBall, [
+                    GoodBallDef,
+                ]);
                 if (heldBall) {
-                    EM.ensureComponentOn(heldBall, DeletedDef);
-                    _numGoodBalls--;
+                    despawnGoodBall(heldBall);
                 }
                 player.player.holdingBall = 0;
                 // c.cannonLocal.fireMs = c.cannonLocal.fireDelayMs;
@@ -404,6 +473,7 @@ export async function initLD51Game(em, hosting) {
     ], [], (splinters, res) => {
         for (let s of splinters) {
             if (s.position[1] <= 0) {
+                // TODO(@darzu): zero these instead of remove?
                 em.removeComponent(s.id, LinearVelocityDef);
                 em.removeComponent(s.id, GravityDef);
                 em.removeComponent(s.id, AngularVelocityDef);
@@ -420,17 +490,41 @@ export async function initLD51Game(em, hosting) {
     // const quadIdsNeedReset = new Set<number>();
     // assert(_player?.collider.shape === "AABB");
     // console.dir(ghost.collider.aabb);
-    em.registerSystem([GhostDef, WorldFrameDef, ColliderDef], [InputsDef, CanvasDef], (ps, { inputs, htmlCanvas }) => {
+    const BUSY_WAIT = 20.0;
+    em.registerSystem([GhostDef, WorldFrameDef, ColliderDef], [InputsDef, CanvasDef], async (ps, { inputs, htmlCanvas }) => {
         if (!ps.length)
             return;
         const ghost = ps[0];
-        if (inputs.lclick && htmlCanvas.hasFirstInteraction) {
+        if (!htmlCanvas.hasFirstInteraction)
+            return;
+        // if (BUSY_WAIT) {
+        //   let before = performance.now();
+        //   const mat = mat4.create();
+        //   while (performance.now() - before < BUSY_WAIT) {
+        //     mat4.mul(mat, mat, mat);
+        //   }
+        //   // console.log(before);
+        // }
+        if (inputs.keyDowns["t"] && BUSY_WAIT) {
+            let before = performance.now();
+            const mat = mat4.create();
+            while (performance.now() - before < BUSY_WAIT) {
+                mat4.mul(mat, mat, mat);
+            }
+        }
+        if (inputs.lclick) {
             // console.log(`fire!`);
             const firePos = ghost.world.position;
             const fireDir = quat.create();
             quat.copy(fireDir, ghost.world.rotation);
             const ballHealth = 2.0;
             fireBullet(em, 1, firePos, fireDir, 0.05, 0.02, 3, ballHealth);
+        }
+        if (inputs.keyClicks["r"]) {
+            const timber2 = await em.whenEntityHas(timber, RenderableDef);
+            resetWoodHealth(timber.woodHealth);
+            resetWoodState(timber.woodState);
+            res.renderer.renderer.stdPool.updateMeshQuads(timber2.renderable.meshHandle, timber.woodState.mesh, 0, timber.woodState.mesh.quad.length);
         }
     }, "ld51Ghost");
     if (DBG_PLAYER)
@@ -567,8 +661,9 @@ export async function initLD51Game(em, hosting) {
                                 if (w.id === targetSide.id || w.id === targetFrontBack.id) {
                                     vec3.zero(b.linearVelocity);
                                     vec3.zero(b.gravity);
-                                    if (_numGoodBalls < MAX_GOODBALLS) {
-                                        em.ensureComponentOn(b, DeletedDef);
+                                    if (_goodBallPool.numFree() > 0) {
+                                        // em.ensureComponentOn(b, DeletedDef);
+                                        em.ensureComponentOn(b, DeadDef);
                                         spawnGoodBall(b.world.position);
                                     }
                                     else {
@@ -582,31 +677,20 @@ export async function initLD51Game(em, hosting) {
             }, "bulletBounce");
             sandboxSystems.push("bulletBounce");
         }
-        // TODO(@darzu): use a pool for goodballs
-        const GoodBallDef = EM.defineComponent("goodBall", () => true);
-        function spawnGoodBall(pos) {
-            _numGoodBalls++;
-            const ball = em.newEntity();
-            em.ensureComponentOn(ball, RenderableConstructDef, res.assets.ball.proto);
-            em.ensureComponentOn(ball, ColorDef, vec3.clone(ENDESGA16.orange));
-            em.ensureComponentOn(ball, PositionDef, vec3.clone(pos));
-            em.ensureComponentOn(ball, GoodBallDef);
-            em.ensureComponentOn(ball, LinearVelocityDef);
-            em.ensureComponentOn(ball, GravityDef, [0, -3, 0]);
-            const interactBox = EM.newEntity();
-            const interactAABB = copyAABB(createAABB(), res.assets.ball.aabb);
-            vec3.scale(interactAABB.min, interactAABB.min, 2);
-            vec3.scale(interactAABB.max, interactAABB.max, 2);
-            EM.ensureComponentOn(interactBox, PhysicsParentDef, ball.id);
-            EM.ensureComponentOn(interactBox, PositionDef, [0, 0, 0]);
-            EM.ensureComponentOn(interactBox, ColliderDef, {
-                shape: "AABB",
-                solid: false,
-                aabb: interactAABB,
-            });
-            em.ensureComponentOn(ball, InteractableDef, interactBox.id);
-            // em.ensureComponentOn(ball, WorldFrameDef);
-        }
+        // dead bullet maintenance
+        // NOTE: this must be called after any system that can create dead bullets but
+        //   before the rendering systems.
+        em.registerSystem([BulletDef, PositionDef, DeadDef, RenderableDef], [], (es, _) => {
+            for (let e of es) {
+                if (e.dead.processed)
+                    continue;
+                e.bullet.health = 10;
+                vec3.set(e.position, 0, -100, 0);
+                e.renderable.hidden = true;
+                e.dead.processed = true;
+            }
+        }, "deadBullets");
+        sandboxSystems.push("deadBullets");
         // starter ammo
         {
             assert(colFloor.collider.shape === "AABB");
@@ -628,7 +712,6 @@ export async function initLD51Game(em, hosting) {
                     ball.position[1] = realFloorHeight + 1;
                     vec3.zero(ball.linearVelocity);
                     vec3.zero(ball.gravity);
-                    em.removeComponent(ball.id, GravityDef);
                 }
             }
         }, "fallingGoodBalls");
@@ -648,38 +731,43 @@ export async function initLD51Game(em, hosting) {
                     player.player.holdingBall = ball.id;
                     em.ensureComponentOn(ball, PhysicsParentDef, player.id);
                     vec3.set(ball.position, 0, 0, -1);
-                    em.ensureComponentOn(ball, ScaleDef, [0.4, 0.4, 0.4]);
+                    em.ensureComponentOn(ball, ScaleDef);
+                    vec3.copy(ball.scale, [0.8, 0.8, 0.8]);
                     em.removeComponent(ball.id, InteractableDef);
                 }
             }
         }, "pickUpBalls");
         sandboxSystems.push("pickUpBalls");
         if (DBG_PLAYER) {
-            const ghost = createGhost(em);
-            vec3.copy(ghost.position, [0, 1, -1.2]);
-            quat.setAxisAngle(ghost.rotation, [0.0, -1.0, 0.0], 1.62);
-            ghost.cameraFollow.positionOffset = [0, 0, 5];
-            ghost.controllable.speed *= 0.5;
-            ghost.controllable.sprintMul = 10;
+            const g = createGhost(em);
+            vec3.copy(g.position, [0, 1, -1.2]);
+            quat.setAxisAngle(g.rotation, [0.0, -1.0, 0.0], 1.62);
+            g.cameraFollow.positionOffset = [0, 0, 5];
+            g.controllable.speed *= 0.5;
+            g.controllable.sprintMul = 10;
             const sphereMesh = cloneMesh(res.assets.ball.mesh);
             const visible = false;
-            em.ensureComponentOn(ghost, RenderableConstructDef, sphereMesh, visible);
-            em.ensureComponentOn(ghost, ColorDef, [0.1, 0.1, 0.1]);
-            em.ensureComponentOn(ghost, PositionDef, [0, 0, 0]);
+            em.ensureComponentOn(g, RenderableConstructDef, sphereMesh, visible);
+            em.ensureComponentOn(g, ColorDef, [0.1, 0.1, 0.1]);
+            em.ensureComponentOn(g, PositionDef, [0, 0, 0]);
             // em.ensureComponentOn(b2, PositionDef, [0, 0, -1.2]);
-            em.ensureComponentOn(ghost, WorldFrameDef);
+            em.ensureComponentOn(g, WorldFrameDef);
             // em.ensureComponentOn(b2, PhysicsParentDef, g.id);
-            em.ensureComponentOn(ghost, ColliderDef, {
+            em.ensureComponentOn(g, ColliderDef, {
                 shape: "AABB",
                 solid: false,
                 aabb: res.assets.ball.aabb,
             });
+            vec3.copy(g.position, [-28.11, 26.0, -28.39]);
+            quat.copy(g.rotation, [0.0, -0.94, 0.0, 0.34]);
+            vec3.copy(g.cameraFollow.positionOffset, [0.0, 0.0, 5.0]);
+            g.cameraFollow.yawOffset = 0.0;
+            g.cameraFollow.pitchOffset = -0.593;
         }
         if (!DBG_PLAYER) {
             const _player = createPlayer(em);
             vec3.set(_player.playerProps.location, -10, realFloorHeight + 6, 0);
             em.whenEntityHas(_player, PositionDef, RotationDef, CameraFollowDef, ControllableDef, ColliderDef).then((player) => {
-                console.log(`init player?`);
                 Object.assign(player.controllable.modes, {
                     canCameraYaw: false,
                     canFall: true,
@@ -705,7 +793,7 @@ export async function initLD51Game(em, hosting) {
     startPirates();
     const startHealth = getCurrentHealth();
     {
-        em.registerSystem([], [InputsDef, TextDef, TimeDef], (es, res) => {
+        em.registerSystem([], [InputsDef, TextDef, TimeDef, AudioDef], (es, res) => {
             // const player = em.findEntity(res.localPlayer.playerId, [PlayerDef])!;
             // if (!player) return;
             const currentHealth = getCurrentHealth();
@@ -715,14 +803,18 @@ export async function initLD51Game(em, hosting) {
             const elapsedPer = Math.min(Math.ceil((elapsed / spawnTimer) * 10), 10);
             res.text.upperText = `Hull %${healthPercent.toFixed(1)}, Kills ${pirateKills}, !${elapsedPer}`;
             if (DBG_PLAYER) {
-                // TODO(@darzu): IMPL
-                res.text.lowerText = `splinterEnds: ${_numSplinterEnds}, goodballs: ${_numGoodBalls}`;
+                // res.text.lowerText = `splinterEnds: ${_numSplinterEnds}, goodballs: ${_numGoodBalls}`;
+                res.text.lowerText = ``;
+                res.text.lowerText += `Time: ${(res.time.time / 1000).toFixed(1)}s`;
+                res.text.lowerText += ` `;
+                res.text.lowerText += `Strings: ${res.music.state?._stringPool.numFree()}`;
             }
             else {
                 res.text.lowerText = `WASD+Shift; left click to pick up cannon balls and fire the cannons. Survive! They attack like clockwork.`;
             }
             if (healthPercent < 20) {
                 alert(`You've been sunk! You killed ${pirateKills} and lasted ${(res.time.time / 1000).toFixed(1)} seconds. Thanks for playing! Refresh to try again.`);
+                sandboxSystems.length = 0;
             }
         }, "progressGame");
         sandboxSystems.push("progressGame");
@@ -859,24 +951,19 @@ export function appendTimberRib(b, ccw) {
 }
 const startDelay = 0;
 // const startDelay = 1000;
-export const PiratePlatformDef = EM.defineComponent("piratePlatform", (cannon, tiltPeriod, tiltTimer) => {
+export const PiratePlatformDef = EM.defineComponent("piratePlatform", (cannon) => {
     return {
         cannon: createRef(cannon),
-        tiltPeriod,
-        tiltTimer,
-        lastFire: startDelay,
+        tiltPeriod: 0,
+        tiltTimer: 0,
+        lastFire: 0,
+        poolIdx: -1, // TODO(@darzu): HACK. this is for object pooling
     };
 });
 function rotatePiratePlatform(p, rad) {
     vec3.rotateY(p.position, p.position, vec3.ZEROS, rad);
     quat.rotateY(p.rotation, p.rotation, rad);
 }
-const pitchSpeed = 0.000042;
-const numStartPirates = DBG_PLAYER ? 9 : 2;
-let nextSpawn = 0;
-const tenSeconds = 1000 * (DBG_PLAYER ? 3 : 10); // TODO(@darzu): make 10 seconds
-let spawnTimer = tenSeconds;
-const minSpawnTimer = 3000;
 async function startPirates() {
     const em = EM;
     // TODO(@darzu): HACK!
@@ -891,11 +978,11 @@ async function startPirates() {
             nextSpawn += spawnTimer;
             // console.log("SPAWN");
             const rad = Math.random() * 2 * Math.PI;
-            if (pirateCount < 10) {
+            if (pirateCount < maxPirates) {
                 spawnPirate(rad);
-            }
-            if (pirateCount < 2) {
-                spawnPirate(rad + Math.PI);
+                if (pirateCount < 2) {
+                    spawnPirate(rad + Math.PI);
+                }
             }
             spawnTimer *= 0.95;
             spawnTimer = Math.max(spawnTimer, minSpawnTimer);
@@ -943,29 +1030,103 @@ async function startPirates() {
     }, "updatePiratePlatforms");
     sandboxSystems.push("updatePiratePlatforms");
 }
+const _pirateData = [];
+const _piratePool = createIdxPool(maxPirates);
 async function spawnPirate(rad) {
-    // console.log("SPAWNED!");
+    // console.log("spawnPirate!");
     const em = EM;
     const initialPitch = Math.PI * 0.06;
-    const res = await em.whenResources(AssetsDef, RendererDef);
-    const platform = em.newEntity();
-    const cannon = em.newEntity();
-    const groundMesh = cloneMesh(res.assets.hex.mesh);
-    transformMesh(groundMesh, mat4.fromRotationTranslationScale(tempMat4(), quat.IDENTITY, [0, -1, 0], [4, 1, 4]));
-    em.ensureComponentOn(platform, RenderableConstructDef, groundMesh);
-    em.ensureComponentOn(platform, ColorDef, vec3.clone(ENDESGA16.deepBrown));
-    // em.ensureComponentOn(p, ColorDef, [0.2, 0.3, 0.2]);
-    em.ensureComponentOn(platform, PositionDef, [0, 0, 30]);
-    em.ensureComponentOn(platform, RotationDef);
-    // em.ensureComponentOn(plane, PositionDef, [0, -5, 0]);
+    const res = await em.whenResources(AssetsDef, RendererDef, TimeDef);
+    const pIdx = _piratePool.next();
+    if (pIdx === undefined) {
+        // console.warn(`Full on pirates!`);
+        return;
+    }
+    if (!_pirateData[pIdx]) {
+        // NEW PIRATE
+        // make platform
+        const platform = em.newEntity();
+        em.ensureComponentOn(platform, ColorDef);
+        vec3.copy(platform.color, ENDESGA16.deepBrown);
+        em.ensureComponentOn(platform, PositionDef);
+        em.ensureComponentOn(platform, RotationDef);
+        const groundMesh = cloneMesh(res.assets.hex.mesh);
+        transformMesh(groundMesh, mat4.fromRotationTranslationScale(tempMat4(), quat.IDENTITY, [0, -1, 0], [4, 1, 4]));
+        em.ensureComponentOn(platform, RenderableConstructDef, groundMesh);
+        // make cannon
+        const cannon = em.newEntity();
+        em.ensureComponentOn(cannon, RenderableConstructDef, res.assets.ld51_cannon.proto);
+        em.ensureComponentOn(cannon, PositionDef);
+        em.ensureComponentOn(cannon, PhysicsParentDef, platform.id);
+        em.ensureComponentOn(cannon, ColorDef, vec3.clone(ENDESGA16.darkGray));
+        em.ensureComponentOn(cannon, RotationDef);
+        vec3.copy(cannon.position, [0, 2, 0]);
+        // make timber
+        const timber = em.newEntity();
+        const _timberMesh = createEmptyMesh("pirateShip");
+        const builder = createTimberBuilder(_timberMesh);
+        appendPirateShip(builder);
+        _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
+        const timberState = getBoardsFromMesh(_timberMesh);
+        // unshareProvokingForWood(_timberMesh, timberState);
+        verifyUnsharedProvokingForWood(_timberMesh, timberState);
+        // TODO(@darzu): maybe there shouldn't actually be any unsharing? We should
+        //   be able to get it right at construction time.
+        // console.log(`before: ` + meshStats(_timberMesh));
+        // const timberMesh = normalizeMesh(_timberMesh);
+        // console.log(`after: ` + meshStats(timberMesh));
+        const timberMesh = _timberMesh;
+        timberMesh.usesProvoking = true;
+        reserveSplinterSpace(timberState, 10);
+        em.ensureComponentOn(timber, RenderableConstructDef, timberMesh);
+        em.ensureComponentOn(timber, WoodStateDef, timberState);
+        em.ensureComponentOn(timber, ColorDef, vec3.clone(ENDESGA16.red));
+        const timberAABB = getAABBFromMesh(timberMesh);
+        em.ensureComponentOn(timber, PositionDef, [0, builder.width, 0]);
+        em.ensureComponentOn(timber, RotationDef);
+        em.ensureComponentOn(timber, ColliderDef, {
+            shape: "AABB",
+            solid: false,
+            aabb: timberAABB,
+        });
+        const timberHealth = createWoodHealth(timberState);
+        em.ensureComponentOn(timber, WoodHealthDef, timberHealth);
+        em.ensureComponentOn(timber, PhysicsParentDef, platform.id);
+        // make joint entity
+        em.ensureComponentOn(platform, PiratePlatformDef, cannon);
+        platform.piratePlatform.poolIdx = pIdx;
+        _pirateData[pIdx] = {
+            platform,
+            cannon,
+            timber,
+        };
+    }
+    const p = _pirateData[pIdx];
+    // set/reset platform, cannon, and wood properties
+    const platform = p.platform;
+    const cannon = p.cannon;
+    const timber = p.timber;
+    // reset timber
+    resetWoodHealth(p.timber.woodHealth);
+    resetWoodState(p.timber.woodState);
+    const timber2 = await em.whenEntityHas(timber, RenderableDef);
+    res.renderer.renderer.stdPool.updateMeshQuads(timber2.renderable.meshHandle, timber.woodState.mesh, 0, timber.woodState.mesh.quad.length);
+    // undead
+    em.tryRemoveComponent(platform.id, DeadDef);
+    em.tryRemoveComponent(cannon.id, DeadDef);
+    if (RenderableDef.isOn(platform))
+        platform.renderable.hidden = false;
+    if (RenderableDef.isOn(cannon))
+        cannon.renderable.hidden = false;
+    vec3.copy(platform.position, [0, 0, 30]);
+    quat.identity(platform.rotation);
     const tiltPeriod = 5700 + jitter(3000);
     const tiltTimer = Math.random() * tiltPeriod;
-    em.ensureComponentOn(platform, PiratePlatformDef, cannon, tiltPeriod, tiltTimer);
-    em.ensureComponentOn(cannon, RenderableConstructDef, res.assets.ld51_cannon.proto);
-    em.ensureComponentOn(cannon, PositionDef, [0, 2, 0]);
-    em.ensureComponentOn(cannon, RotationDef, quat.rotateX(quat.create(), quat.IDENTITY, initialPitch));
-    em.ensureComponentOn(cannon, PhysicsParentDef, platform.id);
-    em.ensureComponentOn(cannon, ColorDef, vec3.clone(ENDESGA16.darkGray));
+    platform.piratePlatform.lastFire = res.time.time + startDelay;
+    platform.piratePlatform.tiltPeriod = tiltPeriod;
+    platform.piratePlatform.tiltTimer = tiltTimer;
+    quat.identity(cannon.rotation);
+    quat.rotateX(cannon.rotation, cannon.rotation, initialPitch);
     // TODO(@darzu): HACK!
     // so they start slightly different pitches
     let initTimer = 0;
@@ -976,43 +1137,6 @@ async function spawnPirate(rad) {
         let r = Math.PI * pitchSpeed * 16.6666 * (upMode ? -1 : 1);
         quat.rotateX(cannon.rotation, cannon.rotation, r);
     }
-    // TIMBER SHIP
-    {
-        const timber = em.newEntity();
-        const _timberMesh = createEmptyMesh("pirateShip");
-        const builder = createTimberBuilder(_timberMesh);
-        appendPirateShip(builder);
-        _timberMesh.surfaceIds = _timberMesh.colors.map((_, i) => i);
-        const timberState = getBoardsFromMesh(_timberMesh);
-        unshareProvokingForWood(_timberMesh, timberState);
-        // console.log(`before: ` + meshStats(_timberMesh));
-        // const timberMesh = normalizeMesh(_timberMesh);
-        // console.log(`after: ` + meshStats(timberMesh));
-        const timberMesh = _timberMesh;
-        timberMesh.usesProvoking = true;
-        // TODO(@darzu): reserve room for splinter ends
-        // reserveSplinterSpace(timberState
-        reserveSplinterSpace(timberState, 10);
-        em.ensureComponentOn(timber, RenderableConstructDef, timberMesh);
-        em.ensureComponentOn(timber, WoodStateDef, timberState);
-        em.ensureComponentOn(timber, ColorDef, vec3.clone(ENDESGA16.red));
-        const timberAABB = getAABBFromMesh(timberMesh);
-        em.ensureComponentOn(timber, PositionDef, [0, builder.width, 0]);
-        // em.ensureComponentOn(timber, PositionDef, [
-        //   2 + -builder.depth * 1,
-        //   builder.width,
-        //   -3,
-        // ]);
-        em.ensureComponentOn(timber, RotationDef);
-        em.ensureComponentOn(timber, ColliderDef, {
-            shape: "AABB",
-            solid: false,
-            aabb: timberAABB,
-        });
-        const timberHealth = createWoodHealth(timberState);
-        em.ensureComponentOn(timber, WoodHealthDef, timberHealth);
-        em.ensureComponentOn(timber, PhysicsParentDef, platform.id);
-    }
     rotatePiratePlatform(platform, rad);
     return platform;
 }
@@ -1021,24 +1145,38 @@ export function destroyPirateShip(id, timber) {
     // console.log(`destroy ${id}`);
     // pirateShip
     const e = EM.findEntity(id, [PiratePlatformDef]);
-    if (e) {
-        assert(!!e);
-        EM.ensureComponentOn(e, DeletedDef);
-        if (e.piratePlatform.cannon())
-            EM.ensureComponentOn(e.piratePlatform.cannon(), DeletedDef);
+    if (e && !DeadDef.isOn(e)) {
+        // dead platform
+        EM.ensureComponentOn(e, DeadDef);
+        if (RenderableDef.isOn(e))
+            e.renderable.hidden = true;
+        e.dead.processed = true;
+        // dead cannon
+        if (e.piratePlatform.cannon()) {
+            const c = e.piratePlatform.cannon();
+            EM.ensureComponentOn(c, DeadDef);
+            if (RenderableDef.isOn(c))
+                c.renderable.hidden = true;
+            c.dead.processed = true;
+        }
+        // kill count
         pirateKills += 1;
-        const music = EM.getResource(MusicDef);
+        // dead music
+        const music = EM.getResource(AudioDef);
         if (music)
             music.playChords([3], "minor", 2.0, 5.0, 1);
-    }
-    if (WoodHealthDef.isOn(timber) && PhysicsParentDef.isOn(timber)) {
-        // TODO(@darzu): necessary?
-        // timber.physicsParent.id = 0;
-        EM.ensureComponentOn(timber, LifetimeDef, 1000);
-        for (let b of timber.woodHealth.boards) {
-            for (let s of b) {
-                s.health = 0;
+        _piratePool.free(e.piratePlatform.poolIdx);
+        // wood state
+        if (WoodHealthDef.isOn(timber) && PhysicsParentDef.isOn(timber)) {
+            // TODO(@darzu): necessary?
+            // timber.physicsParent.id = 0;
+            // EM.ensureComponentOn(timber, LifetimeDef, 1000);
+            for (let b of timber.woodHealth.boards) {
+                for (let s of b) {
+                    s.health = 0;
+                }
             }
         }
     }
 }
+//# sourceMappingURL=game-ld51.js.map

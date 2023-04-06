@@ -52,3 +52,4 @@ export function createBenchmarkTexAndPipe(size, name) {
     });
     return [tex, pipe];
 }
+//# sourceMappingURL=gpu-benchmark.js.map

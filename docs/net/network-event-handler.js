@@ -48,3 +48,4 @@ export function registerSendOutboxes(em) {
     }
     em.registerSystem([OutboxDef, PeerDef], [EventsToNetworkDef], sendOutboxes, "sendOutboxes");
 }
+//# sourceMappingURL=network-event-handler.js.map

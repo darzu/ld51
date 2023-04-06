@@ -43,3 +43,4 @@ function deserializeBuf(b64) {
     }
     return dataU8.buffer;
 }
+//# sourceMappingURL=import_sprigmesh.js.map

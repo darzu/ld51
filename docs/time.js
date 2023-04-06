@@ -12,3 +12,4 @@ export function tick(em, dt) {
     time.step += 1;
     time.dt = dt;
 }
+//# sourceMappingURL=time.js.map

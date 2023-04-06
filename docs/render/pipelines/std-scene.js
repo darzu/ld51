@@ -1,5 +1,5 @@
-var _a, _b;
 import { vec3, mat4 } from "../../gl-matrix.js";
+import { assertDbg } from "../../util.js";
 import { computeTriangleNormal } from "../../utils-3d.js";
 import { CY } from "../gpu-registry.js";
 import { createCyStruct } from "../gpu-struct.js";
@@ -26,6 +26,16 @@ export const VertexStruct = createCyStruct({
         views.u32[offsets_32[3]] = surfaceId;
     },
 });
+export function createEmptyVertexTS() {
+    return {
+        position: vec3.create(),
+        color: vec3.create(),
+        // tangent: m.tangents ? m.tangents[i] : [1.0, 0.0, 0.0],
+        normal: vec3.create(),
+        // uv: m.uvs ? m.uvs[i] : [0.0, 0.0],
+        surfaceId: 0,
+    };
+}
 export const MeshUniformStruct = createCyStruct({
     transform: "mat4x4<f32>",
     // aabbMin: "vec3<f32>",
@@ -81,35 +91,51 @@ export function computeUniData(m) {
     };
     return uni;
 }
-export function computeVertsData(m) {
-    const vertsData = m.pos.map((pos, i) => ({
-        position: pos,
-        color: [1.0, 0.0, 1.0],
-        tangent: m.tangents ? m.tangents[i] : [1.0, 0.0, 0.0],
-        normal: m.normals ? m.normals[i] : [0.0, 1.0, 0.0],
-        uv: m.uvs ? m.uvs[i] : [0.0, 0.0],
-        surfaceId: 0, // per-face; changed below
-    }));
+// TODO(@darzu): Allow updates directly to serialized data
+// TODO(@darzu): Related, allow updates that don't change e.g. the normals
+const tempVertsData = [];
+export function computeVertsData(m, startIdx, count) {
+    assertDbg(0 <= startIdx && startIdx + count <= m.pos.length);
+    while (tempVertsData.length < count)
+        tempVertsData.push(createEmptyVertexTS());
+    for (let vi = startIdx; vi < startIdx + count; vi++) {
+        const dIdx = vi - startIdx;
+        // NOTE: assignment is fine since this better not be used without being re-assigned
+        tempVertsData[dIdx].position = m.pos[vi];
+        // TODO(@darzu): UVs and other properties?
+    }
     // NOTE: for per-face data (e.g. color and surface IDs), first all the quads then tris
     m.tri.forEach((triInd, i) => {
         // set provoking vertex data
+        const provVi = triInd[0];
+        // is triangle relevant to changed vertices?
+        if (provVi < startIdx || startIdx + count <= provVi)
+            return;
+        const dIdx = provVi - startIdx;
         // TODO(@darzu): add support for writting to all three vertices (for non-provoking vertex setups)
         // TODO(@darzu): what to do about normals. If we're modifying verts, they need to recompute. But it might be in the mesh.
         const normal = computeTriangleNormal(m.pos[triInd[0]], m.pos[triInd[1]], m.pos[triInd[2]]);
-        vertsData[triInd[0]].normal = normal;
+        tempVertsData[dIdx].normal = normal;
         const faceIdx = i + m.quad.length; // quads first
-        vertsData[triInd[0]].color = m.colors[faceIdx];
-        vertsData[triInd[0]].surfaceId = m.surfaceIds[faceIdx];
+        // TODO(@darzu): QUAD DATA BEING FIRST BUT TRIANGLES INDICES BEING FIRST IS INCONSISTENT
+        tempVertsData[dIdx].color = m.colors[faceIdx];
+        tempVertsData[dIdx].surfaceId = m.surfaceIds[faceIdx];
     });
     m.quad.forEach((quadInd, i) => {
         // set provoking vertex data
+        const provVi = quadInd[0];
+        // is quad relevant to changed vertices?
+        if (provVi < startIdx || startIdx + count <= provVi)
+            return;
+        const dIdx = provVi - startIdx;
         const normal = computeTriangleNormal(m.pos[quadInd[0]], m.pos[quadInd[1]], m.pos[quadInd[2]]);
-        vertsData[quadInd[0]].normal = normal;
-        // TODO(@darzu): this isn't right, colors and surfaceIds r being indexed by tris and quads
-        vertsData[quadInd[0]].color = m.colors[i];
-        vertsData[quadInd[0]].surfaceId = m.surfaceIds[i];
+        tempVertsData[dIdx].normal = normal;
+        const faceIdx = i; // quads first
+        // TODO(@darzu): QUAD DATA BEING FIRST BUT TRIANGLES INDICES BEING FIRST IS INCONSISTENT
+        tempVertsData[dIdx].color = m.colors[faceIdx];
+        tempVertsData[dIdx].surfaceId = m.surfaceIds[faceIdx];
     });
-    return vertsData;
+    return tempVertsData;
 }
 export const SceneStruct = createCyStruct({
     cameraViewProjMatrix: "mat4x4<f32>",
@@ -175,7 +201,7 @@ export function setupScene() {
 }
 // TODO(@darzu): safer way to grab this format?
 const canvasFormat = //"bgra8unorm-srgb";
- (_b = (_a = navigator.gpu) === null || _a === void 0 ? void 0 : _a.getPreferredCanvasFormat()) !== null && _b !== void 0 ? _b : "bgra8unorm";
+ navigator.gpu?.getPreferredCanvasFormat() ?? "bgra8unorm";
 export const litTexturePtr = CY.createTexture("mainTexture", {
     size: [100, 100],
     onCanvasResize: (w, h) => [w, h],
@@ -211,3 +237,4 @@ export const mainDepthTex = CY.createDepthTexture("canvasDepth", {
     format: "depth32float",
     // format: "depth24plus-stencil8",
 });
+//# sourceMappingURL=std-scene.js.map

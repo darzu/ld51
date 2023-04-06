@@ -11,7 +11,7 @@ import { InRangeDef } from "./interact.js";
 import { LocalPlayerDef, PlayerDef } from "./player.js";
 import { AssetsDef } from "./assets.js";
 import { WorldFrameDef } from "../physics/nonintersection.js";
-import { MusicDef, randChordId } from "../music.js";
+import { AudioDef, randChordId } from "../audio.js";
 import { InputsDef } from "../inputs.js";
 import { DeletedDef } from "../delete.js";
 import { defineNetEntityHelper } from "../em_helpers.js";
@@ -20,10 +20,10 @@ export const { CannonPropsDef, CannonLocalDef, createCannon } = defineNetEntityH
     name: "cannon",
     defaultProps: (loc, yaw, pitch, parentId) => {
         return {
-            location: loc !== null && loc !== void 0 ? loc : vec3.fromValues(0, 0, 0),
-            yaw: yaw !== null && yaw !== void 0 ? yaw : 0,
-            pitch: pitch !== null && pitch !== void 0 ? pitch : 0,
-            parentId: parentId !== null && parentId !== void 0 ? parentId : 0,
+            location: loc ?? vec3.fromValues(0, 0, 0),
+            yaw: yaw ?? 0,
+            pitch: pitch ?? 0,
+            parentId: parentId ?? 0,
         };
     },
     serializeProps: (c, buf) => {
@@ -70,9 +70,8 @@ export function registerCannonSystems(em) {
         }
     }, "reloadCannon");
     const raiseFireCannon = eventWizard("fire-cannon", [[PlayerDef], [CannonLocalDef, WorldFrameDef]], ([player, cannon]) => {
-        var _a;
         // only the firing player creates a bullet
-        if (player.id === ((_a = EM.getResource(LocalPlayerDef)) === null || _a === void 0 ? void 0 : _a.playerId)) {
+        if (player.id === EM.getResource(LocalPlayerDef)?.playerId) {
             const fireDir = cannon.world.rotation;
             // const fireDir = quat.create();
             // quat.rotateY(fireDir, cannon.world.rotation, Math.PI * 0.5);
@@ -84,7 +83,7 @@ export function registerCannonSystems(em) {
         // but everyone resets the cooldown and plays sound effects
         cannon.cannonLocal.fireMs = cannon.cannonLocal.fireDelayMs;
         const chord = randChordId();
-        EM.getResource(MusicDef).playChords([chord], "major", 2.0, 3.0, -2);
+        EM.getResource(AudioDef).playChords([chord], "major", 2.0, 3.0, -2);
     }, {
         legalEvent: ([player, cannon]) => {
             return cannon.cannonLocal.fireMs <= 0;
@@ -123,3 +122,4 @@ export function registerCannonSystems(em) {
         }
     }, "playerManCanon");
 }
+//# sourceMappingURL=cannon.js.map

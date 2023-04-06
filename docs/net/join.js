@@ -105,3 +105,4 @@ export function registerJoinSystems(em) {
     registerHandleJoin(em);
     registerHandleJoinResponse(em);
 }
+//# sourceMappingURL=join.js.map

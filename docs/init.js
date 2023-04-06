@@ -1,4 +1,4 @@
-import { assert } from "./test.js";
+import { assert } from "./util.js";
 let hasInitPassed = false;
 const onInitFns = [];
 export function onInit(fn) {
@@ -10,3 +10,4 @@ export function callInitFns(em) {
     hasInitPassed = true;
     onInitFns.forEach((fn) => fn(em));
 }
+//# sourceMappingURL=init.js.map

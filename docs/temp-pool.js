@@ -55,3 +55,4 @@ export const tempVec4 = pool.vec4.bind(pool);
 export const tempQuat = pool.quat.bind(pool);
 export const tempMat4 = pool.mat4.bind(pool);
 export const tempMat3 = pool.mat3.bind(pool);
+//# sourceMappingURL=temp-pool.js.map

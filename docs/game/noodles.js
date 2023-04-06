@@ -2,7 +2,7 @@ import { EM } from "../entity-manager.js";
 import { cloneMesh, mapMeshPositions, normalizeMesh, scaleMesh3, } from "../render/mesh.js";
 import { PositionDef } from "../physics/transform.js";
 import { RenderableConstructDef, RenderableDef, } from "../render/renderer-ecs.js";
-import { assert } from "../test.js";
+import { assert } from "../util.js";
 import { RendererDef } from "../render/renderer-ecs.js";
 import { vec3 } from "../gl-matrix.js";
 import { CUBE_MESH } from "./assets.js";
@@ -57,7 +57,7 @@ export function registerNoodleSystem(em) {
                 // TODO(@darzu): rotate around .dir
                 return vec3.add(vec3.create(), p, seg.pos);
             });
-            rs.renderer.renderer.updateMeshVertices(e.renderable.meshHandle, mesh);
+            rs.renderer.renderer.stdPool.updateMeshVertices(e.renderable.meshHandle, mesh);
         }
     }, "updateNoodles");
 }
@@ -67,3 +67,4 @@ export function createNoodleMesh(thickness, color) {
     scaleMesh3(m, [thickness, 0.0, thickness]);
     return normalizeMesh(m);
 }
+//# sourceMappingURL=noodles.js.map

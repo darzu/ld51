@@ -2,7 +2,7 @@
 // https://people.cs.clemson.edu/~dhouse/courses/405/docs/brief-obj-file-format.html
 // http://paulbourke.net/dataformats/obj/
 import { vec3 } from "./gl-matrix.js";
-import { assert } from "./test.js";
+import { assert } from "./util.js";
 import { idPair, isString } from "./util.js";
 export function isParseError(m) {
     return isString(m);
@@ -46,7 +46,6 @@ function parseLine(p) {
     return verts;
 }
 export function exportObj(m, iOff = 0) {
-    var _a;
     let resLns = [
         `# sprigland exported mesh (${m.pos.length} verts, ${m.tri.length} faces)`,
     ];
@@ -63,7 +62,7 @@ export function exportObj(m, iOff = 0) {
         resLns.push(`f ${f[0] + 1 + iOff}// ${f[1] + 1 + iOff}// ${f[2] + 1 + iOff}// ${f[3] + 1 + iOff}//`);
     }
     // output lines
-    for (let l of (_a = m.lines) !== null && _a !== void 0 ? _a : []) {
+    for (let l of m.lines ?? []) {
         resLns.push(`l ${l[0] + 1 + iOff}/ ${l[1] + 1 + iOff}/`);
     }
     return resLns.join("\n");
@@ -298,7 +297,6 @@ function assertSingleObjSuccess(obj) {
     return m[0];
 }
 export function testImporters() {
-    var _a;
     // invalid
     // TODO(@darzu):
     assertObjError("oijawlidjoiwad", "empty mesh");
@@ -340,7 +338,7 @@ export function testImporters() {
     v 0 1 2
     l 1/0 2/0
   `);
-    assert(good3.tri.length === 0 && ((_a = good3.lines) === null || _a === void 0 ? void 0 : _a.length) === 1, "test expects 0 tri, 1 line");
+    assert(good3.tri.length === 0 && good3.lines?.length === 1, "test expects 0 tri, 1 line");
     // valid, complex
     const hat = assertSingleObjSuccess(HAT_OBJ);
     // exporting
@@ -512,3 +510,4 @@ f 7/23/10 9/56/10 11/24/10
 f 11/24/10 13/57/10 15/25/10
 f 15/25/10 3/54/10 7/23/10
 `;
+//# sourceMappingURL=import_obj.js.map

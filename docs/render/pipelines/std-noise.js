@@ -1,4 +1,4 @@
-import { assert } from "../../test.js";
+import { assert } from "../../util.js";
 import { fullQuad } from "../gpu-helper.js";
 import { CY, getTexFromAttachment, } from "../gpu-registry.js";
 import { sceneBufPtr } from "./std-scene.js";
@@ -261,3 +261,4 @@ export const noiseGridFrame = [
     //   getTexFromAttachment(octavesPipe1.output[0]),
     // ],
 ];
+//# sourceMappingURL=std-noise.js.map

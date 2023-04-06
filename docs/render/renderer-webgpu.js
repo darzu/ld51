@@ -1,4 +1,4 @@
-import { assert } from "../test.js";
+import { assert } from "../util.js";
 import { CY, } from "./gpu-registry.js";
 import { isRenderPipeline, } from "./data-webgpu.js";
 import { meshPoolPtr, sceneBufPtr, } from "./pipelines/std-scene.js";
@@ -7,45 +7,53 @@ import { texTypeToBytes } from "./gpu-struct.js";
 import { pointLightsPtr } from "./lights.js";
 import { gerstnerWavesPtr, oceanPoolPtr, } from "./pipelines/std-ocean.js";
 import { GPUBufferUsage } from "./webgpu-hacks.js";
+import { PERF_DBG_GPU, VERBOSE_LOG } from "../flags.js";
+import { dbgLogOnce } from "../util.js";
+// TODO(@darzu): Try using drawIndirect !!
+//    https://gpuweb.github.io/gpuweb/#dom-gpurendercommandsmixin-drawindirect
 const MAX_PIPELINES = 64;
 export function createRenderer(canvas, device, context, shaders) {
-    const renderer = {
-        drawLines: true,
-        drawTris: true,
-        // std mesh
-        addMesh,
-        addMeshInstance,
-        // TODO(@darzu): need sub-mesh updateMesh variant (e.g. coloring a few quads)
-        updateMeshVertices,
-        updateMeshIndices,
-        // ocean
-        addOcean,
-        updateOcean,
-        updateGerstnerWaves,
-        // std scene
-        updateScene,
-        updatePointLights,
-        // uniforms
-        updateStdUniform,
-        updateOceanUniform,
-        // gpu commands
-        submitPipelines,
-        readTexture,
-        stats,
-        // debug
-        getMeshPoolStats,
-    };
     const timestampQuerySet = device.features.has("timestamp-query")
         ? device.createQuerySet({
             type: "timestamp",
             count: MAX_PIPELINES + 1, // start of execution + after each pipeline
         })
         : null;
-    console.log(`timestamp-query: ${!!timestampQuerySet}`);
+    if (VERBOSE_LOG)
+        console.log(`timestamp-query: ${!!timestampQuerySet}`);
     const resources = createCyResources(CY, shaders, device);
     const cyKindToNameToRes = resources.kindToNameToRes;
     const stdPool = cyKindToNameToRes.meshPool[meshPoolPtr.name];
     const oceanPool = cyKindToNameToRes.meshPool[oceanPoolPtr.name];
+    const renderer = {
+        drawLines: true,
+        drawTris: true,
+        // std mesh
+        // addMeshInstance,
+        // TODO(@darzu): need sub-mesh updateMesh variant (e.g. coloring a few quads)
+        // updateMeshVertices,
+        // updateMeshIndices,
+        // ocean
+        // addOcean,
+        // updateOcean,
+        updateGerstnerWaves,
+        // std scene
+        updateScene,
+        updatePointLights,
+        // uniforms
+        // updateStdUniform,
+        // updateOceanUniform,
+        // gpu commands
+        submitPipelines,
+        readTexture,
+        stats,
+        // debug
+        getMeshPoolStats,
+        // TODO(@darzu): collapose the renderer-webgpu layer, it shouldn't exist
+        stdPool,
+        oceanPool,
+    };
+    // TODO(@darzu): collapse this with MeshPool._stats
     function getMeshPoolStats() {
         const stats = {
             numTris: 0,
@@ -83,27 +91,6 @@ export function createRenderer(canvas, device, context, shaders) {
         lastHeight = newHeight;
         return true;
     }
-    function addMesh(m) {
-        const handle = stdPool.addMesh(m);
-        return handle;
-    }
-    function addMeshInstance(oldHandle) {
-        const newHandle = stdPool.addMeshInstance(oldHandle);
-        return newHandle;
-    }
-    function updateMeshVertices(handle, newMeshData) {
-        stdPool.updateMeshVertices(handle, newMeshData);
-    }
-    function updateMeshIndices(handle, newMeshData) {
-        stdPool.updateMeshIndices(handle, newMeshData);
-    }
-    function addOcean(m) {
-        const handle = oceanPool.addMesh(m);
-        return handle;
-    }
-    function updateOcean(handle, newMeshData) {
-        oceanPool.updateMeshVertices(handle, newMeshData);
-    }
     function updateRenderBundle(handles, pipelines) {
         // TODO(@darzu): handle ocean
         needsRebundle = false; // TODO(@darzu): hack?
@@ -116,28 +103,25 @@ export function createRenderer(canvas, device, context, shaders) {
         }
     }
     function updateScene(scene) {
+        if (PERF_DBG_GPU) {
+            dbgLogOnce("sceneUniSize", `SceneUni size: ${sceneUni.struct.size}`);
+        }
         sceneUni.queueUpdate({
             ...sceneUni.lastData,
             ...scene,
         });
     }
     function updatePointLights(pointLights) {
-        pointLightsArray.queueUpdates(pointLights, 0);
+        pointLightsArray.queueUpdates(pointLights, 0, 0, pointLights.length);
     }
     function updateGerstnerWaves(gerstnerWaves) {
-        gerstnerWavesArray.queueUpdates(gerstnerWaves, 0);
-    }
-    function updateStdUniform(handle, data) {
-        stdPool.updateUniform(handle, data);
-    }
-    function updateOceanUniform(handle, data) {
-        oceanPool.updateUniform(handle, data);
+        gerstnerWavesArray.queueUpdates(gerstnerWaves, 0, 0, gerstnerWaves.length);
     }
     // TODO(@darzu): support ocean!
     function submitPipelines(handles, pipelinePtrs) {
         // TODO(@darzu): a lot of the smarts of this fn should come out and be an explicit part
         //  of some pipeline sequencer-timeline-composition-y description thing
-        if (!pipelinePtrs.length) {
+        if (VERBOSE_LOG && !pipelinePtrs.length) {
             console.warn("rendering without any pipelines specified");
             return;
         }
@@ -189,7 +173,8 @@ export function createRenderer(canvas, device, context, shaders) {
             }
         }
         if (needsRebundle) {
-            // console.log("rebundeling");
+            if (PERF_DBG_GPU)
+                console.log("rebundeling");
             updateRenderBundle(handles, renderPipelines);
         }
         lastPipelines = pipelines;
@@ -289,3 +274,4 @@ export function createRenderer(canvas, device, context, shaders) {
     }
     return renderer;
 }
+//# sourceMappingURL=renderer-webgpu.js.map

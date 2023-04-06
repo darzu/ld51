@@ -7,8 +7,9 @@ import { BulletDef } from "./bullet.js";
 import { DeletedDef } from "../delete.js";
 import { EnemyShipLocalDef, breakEnemyShip, } from "./enemy-ship.js";
 import { AssetsDef } from "./assets.js";
-import { MusicDef } from "../music.js";
+import { AudioDef } from "../audio.js";
 import { PositionDef, RotationDef } from "../physics/transform.js";
+import { assert } from "../util.js";
 export function registerBulletCollisionSystem(em) {
     // TODO(@darzu):
     em.registerSystem([BulletDef, AuthorityDef], [PhysicsResultsDef, DetectedEventsDef], (bullets, resources) => {
@@ -37,6 +38,7 @@ export function registerBulletCollisionSystem(em) {
     }, "bulletCollision");
 }
 export const raiseBulletBullet = eventWizard("bullet-bullet", [[BulletDef], [BulletDef]], ([b1, b2]) => {
+    assert(false, `raiseBulletBullet doesnt work on ld51`); // TODO(@darzu): ld51
     // This bullet might have already been deleted via the sync system
     EM.ensureComponentOn(b1, DeletedDef);
     EM.ensureComponentOn(b2, DeletedDef);
@@ -45,10 +47,13 @@ export const raiseBulletBullet = eventWizard("bullet-bullet", [[BulletDef], [Bul
     eventAuthorityEntity: (entities) => Math.min(...entities),
 });
 export const raiseBulletPlayer = eventWizard("bullet-player", () => [[BulletDef], [PlayerDef]], ([bullet, player]) => {
+    assert(false, `raiseBulletPlayer doesnt work on ld51`); // TODO(@darzu): ld51
     EM.ensureComponent(bullet.id, DeletedDef);
 });
 export const raiseBulletEnemyShip = eventWizard("bullet-enemyShip", () => [[BulletDef], [EnemyShipLocalDef, PositionDef, RotationDef]], ([bullet, enemyShip]) => {
+    assert(false, `raiseBulletEnemyShip doesnt work on ld51`); // TODO(@darzu): ld51
     EM.ensureComponentOn(bullet, DeletedDef);
-    const res = EM.getResources([AssetsDef, MusicDef]);
+    const res = EM.getResources([AssetsDef, AudioDef]);
     breakEnemyShip(EM, enemyShip, res.assets.boat_broken, res.music);
 });
+//# sourceMappingURL=bullet-collision.js.map

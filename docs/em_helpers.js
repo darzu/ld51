@@ -1,7 +1,7 @@
 import { FinishedDef } from "./build.js";
 import { EM, } from "./entity-manager.js";
 import { AuthorityDef, MeDef, SyncDef } from "./net/components.js";
-import { assert } from "./test.js";
+import { assert } from "./util.js";
 import { capitalize } from "./util.js";
 export function defineSerializableComponent(em, name, construct, serialize, deserialize) {
     const def = em.defineComponent(name, construct);
@@ -87,3 +87,4 @@ export function createRef(idOrE, cs) {
         return thunk;
     }
 }
+//# sourceMappingURL=em_helpers.js.map

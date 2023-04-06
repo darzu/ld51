@@ -20,3 +20,4 @@ export function registerUISystems(em) {
         lowerDiv.firstChild.nodeValue = res.text.lowerText;
     }, "uiText");
 }
+//# sourceMappingURL=ui.js.map

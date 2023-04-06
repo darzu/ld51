@@ -1,5 +1,14 @@
+import { DBG_ASSERT } from "./flags.js";
 import { randInt } from "./math.js";
-import { assert } from "./test.js";
+export function assert(cond, msg) {
+    // https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-7.html#assertion-functions
+    if (!cond)
+        throw new Error(msg ?? "Assertion failed (consider adding a helpful msg).");
+}
+export function assertDbg(cond, msg) {
+    if (DBG_ASSERT)
+        assert(cond, msg);
+}
 export function range(length) {
     return new Array(length).fill(null).map((_, i) => i);
 }
@@ -10,7 +19,7 @@ export function zip(ts, us) {
     return ts.map((t, i) => [t, us[i]]);
 }
 export function never(x, msg) {
-    throw new Error(msg !== null && msg !== void 0 ? msg : "Unexpected object: " + x);
+    throw new Error(msg ?? "Unexpected object: " + x);
 }
 export function __isSMI(n) {
     // Checks if a number is within the "small integer" range
@@ -124,16 +133,16 @@ export function toBinary(n, digits = 32) {
     return s;
 }
 let _logOnceKeys = new Set();
-export function dbgLogOnce(key, msg) {
+export function dbgLogOnce(key, msg, warn = false) {
     if (!_logOnceKeys.has(key)) {
         _logOnceKeys.add(key);
-        console.log(msg !== null && msg !== void 0 ? msg : key);
+        console[warn ? "warn" : "log"](msg ?? key);
     }
 }
 export function dbgDirOnce(key, obj) {
     if (!_logOnceKeys.has(key)) {
         _logOnceKeys.add(key);
-        console.dir(obj !== null && obj !== void 0 ? obj : key);
+        console.dir(obj ?? key);
     }
 }
 export function dbgOnce(key) {
@@ -194,3 +203,37 @@ export async function asyncTimeout(ms) {
         }, ms);
     });
 }
+export function createIntervalTracker(maxSep) {
+    let min = Infinity;
+    let max = -Infinity;
+    const intervals = [];
+    function addRange(rMin, rMax) {
+        if (min === Infinity ||
+            (min - maxSep <= rMin && rMin <= max + maxSep) || // rMin is inside
+            (min - maxSep <= rMax && rMax <= max + maxSep) // rMax is inside
+        ) {
+            // update interval
+            min = Math.min(min, rMin);
+            max = Math.max(max, rMax);
+        }
+        else {
+            // start new interval
+            intervals.push({ min, max });
+            min = rMin;
+            max = rMax;
+        }
+    }
+    function finishInterval() {
+        if (min !== Infinity) {
+            intervals.push({ min, max });
+            min = Infinity;
+            max = -Infinity;
+        }
+    }
+    return {
+        intervals,
+        addRange,
+        finishInterval,
+    };
+}
+//# sourceMappingURL=util.js.map

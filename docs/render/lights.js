@@ -31,3 +31,4 @@ export const pointLightsPtr = CY.createArray("pointLight", {
     init: MAX_POINT_LIGHTS,
     forceUsage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
 });
+//# sourceMappingURL=lights.js.map

@@ -16,13 +16,13 @@ import { noisePipes } from "../render/pipelines/std-noise.js";
 import { DevConsoleDef } from "../console.js";
 import { initOcean, OceanDef, UVPosDef } from "./ocean.js";
 import { quat, vec2, vec3 } from "../gl-matrix.js";
-import { EASE_INQUAD } from "../animate-to.js";
 import { createSpawner } from "./spawner.js";
 import { tempVec3 } from "../temp-pool.js";
 import { createDarkStarNow, STAR1_COLOR, STAR2_COLOR } from "./darkstar.js";
 import { renderOceanPipe } from "../render/pipelines/std-ocean.js";
 import { WoodAssetsDef, WoodStateDef } from "../wood.js";
 import { ColliderDef } from "../physics/collider.js";
+import { EASE_INQUAD } from "../util-ease.js";
 // export let jfaMaxStep = VISUALIZE_JFA ? 0 : 999;
 function spawnRandomDarkStar(res, approxPosition, color) {
     const orbitalAxis = vec3.fromValues(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
@@ -146,3 +146,4 @@ export async function initHyperspaceGame(em) {
         const star2 = spawnRandomDarkStar(res, vec3.fromValues(0, 0, 2000), STAR2_COLOR);
     }
 }
+//# sourceMappingURL=game-hyperspace.js.map

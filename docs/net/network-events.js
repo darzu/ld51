@@ -7,3 +7,4 @@ export var NetworkEventType;
     NetworkEventType[NetworkEventType["Connect"] = 4] = "Connect";
     // TODO: close connection?
 })(NetworkEventType || (NetworkEventType = {}));
+//# sourceMappingURL=network-events.js.map

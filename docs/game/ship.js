@@ -41,3 +41,4 @@ onInit((em) => {
         }
     }, "shipMove");
 });
+//# sourceMappingURL=ship.js.map

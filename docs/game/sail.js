@@ -37,12 +37,12 @@ EM.registerSerializerPair(BoomPitchesDef, (c, writer) => {
     c.boom1 = reader.readFloat32();
     c.boom2 = reader.readFloat32();
 });
-const SailColorDef = EM.defineComponent("sailColor", (color) => color !== null && color !== void 0 ? color : vec3.create());
+const SailColorDef = EM.defineComponent("sailColor", (color) => color ?? vec3.create());
 // TODO: we need warnings if you forget to call the buildProps system!
 export const { MastPropsDef, MastLocalDef, createMastNow } = defineNetEntityHelper(EM, {
     name: "mast",
     defaultProps: (shipId) => ({
-        shipId: shipId !== null && shipId !== void 0 ? shipId : 0,
+        shipId: shipId ?? 0,
     }),
     serializeProps: (o, buf) => {
         buf.writeUint32(o.shipId);
@@ -176,7 +176,7 @@ onInit((em) => {
                     }
                     return pos;
                 });
-                res.renderer.renderer.updateMeshVertices(sailMeshHandle, sailMeshHandle.readonlyMesh);
+                res.renderer.renderer.stdPool.updateMeshVertices(sailMeshHandle, sailMeshHandle.readonlyMesh);
             };
             // update sails
             const sail1 = mast.mastLocal.sail1();
@@ -243,3 +243,4 @@ function sailForceAndSignedArea(sail, star) {
     vec3.normalize(sailNormal, sailNormal);
     return [vec3.scale(sailNormal, sailNormal, area), area];
 }
+//# sourceMappingURL=sail.js.map

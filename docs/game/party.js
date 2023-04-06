@@ -7,3 +7,4 @@ export const PartyDef = EM.defineComponent("party", () => ({
 onInit((em) => {
     em.addSingletonComponent(PartyDef);
 });
+//# sourceMappingURL=party.js.map

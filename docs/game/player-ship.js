@@ -12,7 +12,7 @@ import { BulletDef } from "./bullet.js";
 import { DeletedDef } from "../delete.js";
 import { clamp, min } from "../math.js";
 import { createCannon } from "./cannon.js";
-import { MusicDef } from "../music.js";
+import { AudioDef } from "../audio.js";
 import { LocalPlayerDef, PlayerDef } from "./player.js";
 import { CameraDef } from "../camera.js";
 import { InputsDef } from "../inputs.js";
@@ -38,7 +38,7 @@ export const ShipPartDef = EM.defineComponent("shipPart", (critical) => ({
 export const { GemPropsDef, GemLocalDef, createGem } = defineNetEntityHelper(EM, {
     name: "gem",
     defaultProps: (shipId) => ({
-        shipId: shipId !== null && shipId !== void 0 ? shipId : 0,
+        shipId: shipId ?? 0,
     }),
     serializeProps: (o, buf) => {
         buf.writeUint32(o.shipId);
@@ -71,7 +71,7 @@ export const { GemPropsDef, GemLocalDef, createGem } = defineNetEntityHelper(EM,
 export const { RudderPropsDef, RudderLocalDef, createRudderNow } = defineNetEntityHelper(EM, {
     name: "rudder",
     defaultProps: (shipId) => ({
-        shipId: shipId !== null && shipId !== void 0 ? shipId : 0,
+        shipId: shipId ?? 0,
     }),
     serializeProps: (o, buf) => {
         buf.writeUint32(o.shipId);
@@ -113,7 +113,7 @@ export const { RudderPropsDef, RudderLocalDef, createRudderNow } = defineNetEnti
 export const { PlayerShipPropsDef, PlayerShipLocalDef, createPlayerShip } = defineNetEntityHelper(EM, {
     name: "playerShip",
     defaultProps: (uvPos) => ({
-        uvPos: uvPos !== null && uvPos !== void 0 ? uvPos : vec2.fromValues(0.5, 0.5),
+        uvPos: uvPos ?? vec2.fromValues(0.5, 0.5),
         gemId: 0,
         cannonLId: 0,
         cannonRId: 0,
@@ -234,7 +234,7 @@ export function registerShipSystems(em) {
         }
     }, "startGame");
     const raiseShipHit = eventWizard("ship-hit", [[PlayerShipLocalDef]], ([ship], partIdx) => {
-        const music = em.getResource(MusicDef);
+        const music = em.getResource(AudioDef);
         const part = ship.playerShipLocal.parts[partIdx]();
         part.renderable.enabled = false;
         part.shipPart.damaged = true;
@@ -245,7 +245,7 @@ export function registerShipSystems(em) {
         deserializeExtra: (buf) => buf.readUint8(),
     });
     em.registerSystem([PlayerShipPropsDef, PlayerShipLocalDef, PositionDef, AuthorityDef], [
-        MusicDef,
+        AudioDef,
         InputsDef,
         CameraDef,
         GameStateDef,
@@ -253,7 +253,6 @@ export function registerShipSystems(em) {
         PhysicsResultsDef,
         DetectedEventsDef,
     ], (ships, res) => {
-        var _a;
         if (res.gameState.state !== GameState.PLAYING)
             return;
         for (let ship of ships) {
@@ -269,8 +268,10 @@ export function registerShipSystems(em) {
                             numCriticalDamaged += 1;
                         continue;
                     }
-                    const bullets = (_a = res.physicsResults.collidesWith
-                        .get(part.id)) === null || _a === void 0 ? void 0 : _a.map((h) => em.findEntity(h, [BulletDef])).filter((h) => h && h.bullet.team === 2);
+                    const bullets = res.physicsResults.collidesWith
+                        .get(part.id)
+                        ?.map((h) => em.findEntity(h, [BulletDef]))
+                        .filter((h) => h && h.bullet.team === 2);
                     if (bullets && bullets.length) {
                         for (let b of bullets)
                             if (b)
@@ -336,3 +337,4 @@ export function registerShipSystems(em) {
         }
     }, "easeRudder");
 }
+//# sourceMappingURL=player-ship.js.map

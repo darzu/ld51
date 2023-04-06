@@ -7,6 +7,7 @@ import { cloneMesh, mapMeshPositions } from "../render/mesh.js";
 import { PhysicsBroadCollidersDef, PhysicsStateDef, WorldFrameDef, } from "./nonintersection.js";
 import { RenderableConstructDef, RenderableDef, } from "../render/renderer-ecs.js";
 import { copyFrame, LocalFrameDefs, PositionDef, ScaleDef, updateFrameFromPosRotScale, } from "./transform.js";
+// TODO(@darzu): re-enable all this! it requires line drawing again
 export const PhysicsDbgDef = EM.defineComponent("_physDbgState", () => {
     return {
         showAABBs: false,
@@ -93,3 +94,4 @@ function meshFromAABB(aabb) {
     m.colors = [];
     return m;
 }
+//# sourceMappingURL=phys-debug.js.map

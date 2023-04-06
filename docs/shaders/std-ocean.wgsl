@@ -71,7 +71,7 @@ fn gerstner(uv: vec2<f32>, t: f32) -> mat2x3<f32> {
                       -1.0 * wave.D.y * wave.w * wave.A * cos(wave.w * dot(wave.D, uv) + wave.phi * t));
     }
     normal.y = 1.0 - normal.y;
-    normalize(normal);
+    normal = normalize(normal);
     return mat2x3(displacement, normal);
 }
 

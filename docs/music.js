@@ -1,5 +1,7 @@
 import { CanvasDef } from "./canvas.js";
 import { EM } from "./entity-manager.js";
+import { ENABLE_AUDIO } from "./flags.js";
+// TODO(@darzu): AUDIO IS CAUSING HUGE PERF ISSUES
 // NOTE: basically this whole file just tries to implement
 //    what Andrew suggests as a good way to start making good sounding
 //    music:
@@ -7,7 +9,33 @@ import { EM } from "./entity-manager.js";
 const MAX_VOLUME = 0.02;
 // TODO(@darzu): create this somewhere as a proper resource
 // create web audio api context
-const audioCtx = window.AudioContext != null ? new window.AudioContext() : undefined;
+export const MusicDef = EM.defineComponent("music", () => {
+    return {
+        audioCtx: undefined,
+        playChords,
+    };
+});
+export function registerMusicSystems(em) {
+    em.addSingletonComponent(MusicDef);
+    let once = true;
+    em.registerSystem(null, [MusicDef, CanvasDef], (_, res) => {
+        if (once && res.htmlCanvas.hasFirstInteraction) {
+            // Init our audio
+            // TODO(@darzu): maybe we shouldn't even create the resource until we
+            //    have the audio context?
+            if (window.AudioContext != null && ENABLE_AUDIO)
+                res.music.audioCtx = new window.AudioContext();
+            // play opening music
+            // const THEME_LENGTH = 100;
+            // const randChordId = () => Math.floor(Math.random() * 6);
+            // const theme = range(100).map((_) => randChordId());
+            // // const theme = [0, 1, 2, 3, 4, 5];
+            // console.log("playing music");
+            // res.music.playChords(theme, "major", 2.0, 2.0, -2);
+            once = false;
+        }
+    }, "musicStart");
+}
 function playFreq(freq, durSec, offset) {
     if (!audioCtx)
         return;
@@ -177,27 +205,7 @@ function playChords(chordIds, majorMinor, noteSpace = 0.3, noteLen = 0.7, octave
         playChord(lowNote(c2), scale, noteLen, start + noteSpace * i);
     }
 }
-export const MusicDef = EM.defineComponent("music", () => {
-    return {
-        playChords,
-    };
-});
 export function randChordId() {
     return Math.floor(Math.random() * 6);
 }
-export function registerMusicSystems(em) {
-    em.addSingletonComponent(MusicDef);
-    let once = true;
-    em.registerSystem(null, [MusicDef, CanvasDef], (_, res) => {
-        if (once && res.htmlCanvas.hasFirstInteraction) {
-            // play opening music
-            // const THEME_LENGTH = 100;
-            // const randChordId = () => Math.floor(Math.random() * 6);
-            // const theme = range(100).map((_) => randChordId());
-            // // const theme = [0, 1, 2, 3, 4, 5];
-            // console.log("playing music");
-            // res.music.playChords(theme, "major", 2.0, 2.0, -2);
-            once = false;
-        }
-    }, "musicStart");
-}
+//# sourceMappingURL=music.js.map

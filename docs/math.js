@@ -1,4 +1,4 @@
-import { assert } from "./test.js";
+import { assert } from "./util.js";
 // functions
 export function sum(ns) {
     return ns.reduce((p, n) => p + n, 0);
@@ -34,6 +34,9 @@ export function randInt(min, max) {
 export function align(x, size) {
     return Math.ceil(x / size) * size;
 }
+export function alignDown(x, size) {
+    return Math.floor(x / size) * size;
+}
 export function chance(zeroToOne) {
     return Math.random() < zeroToOne;
 }
@@ -55,3 +58,4 @@ export function mathMapNEase(n, inMin, inMax, outMin, outMax, easeFn) {
         progress = easeFn(progress);
     return progress * (outMax - outMin) + outMin;
 }
+//# sourceMappingURL=math.js.map

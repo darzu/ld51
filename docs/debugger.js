@@ -165,14 +165,13 @@ function updateEnts() {
     }
 }
 function filterEnts(...cmpNames) {
-    return EM.filterEntitiesByKey(cmpNames);
+    return EM.dbgFilterEntitiesByKey(cmpNames);
 }
 function cmpByName(name) {
-    var _a, _b;
-    let res = (_a = dbgCmps.get(name)) !== null && _a !== void 0 ? _a : dbgCmpsAllByAbv.get(name);
+    let res = dbgCmps.get(name) ?? dbgCmpsAllByAbv.get(name);
     if (!res)
         updateCmps();
-    res = (_b = dbgCmps.get(name)) !== null && _b !== void 0 ? _b : dbgCmpsAllByAbv.get(name);
+    res = dbgCmps.get(name) ?? dbgCmpsAllByAbv.get(name);
     if (!res)
         // TODO(@darzu): fuzzy match?
         return null;
@@ -208,7 +207,7 @@ g.cameraFollow.pitchOffset = ${target.cameraFollow.pitchOffset.toFixed(3)};
     listEnts: (...cs) => {
         updateEnts();
         updateCmps();
-        const es = [...dbgEnts.values()].filter((e) => cs.every((c) => { var _a, _b; return c in e || ((_b = (_a = dbgCmpsAllByAbv.get(c)) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : "INVALID") in e; }));
+        const es = [...dbgEnts.values()].filter((e) => cs.every((c) => c in e || (dbgCmpsAllByAbv.get(c)?.name ?? "INVALID") in e));
         const eTable = es.map((e) => {
             const res = { id: e.id };
             for (let c of e._cmps()) {
@@ -231,7 +230,7 @@ g.cameraFollow.pitchOffset = ${target.cameraFollow.pitchOffset.toFixed(3)};
         return cmpByName(name);
     },
     summarizeStats: () => {
-        let stats = EM.stats;
+        let stats = EM.sysStats;
         let totalQueryTime = Object.values(stats)
             .map((s) => s.queryTime)
             .reduce((x, y) => x + y);
@@ -250,17 +249,18 @@ g.cameraFollow.pitchOffset = ${target.cameraFollow.pitchOffset.toFixed(3)};
             out +=
                 s +
                     ": " +
-                    ((t * 100) / totalTime).toPrecision(2) +
+                    ((t * 100) / totalTime).toFixed(1) +
                     "%" +
                     " (" +
-                    (t / EM.loops).toPrecision(2) +
+                    (t / EM.loops).toFixed(2) +
                     "ms, max:" +
-                    m.toPrecision(2) +
+                    m.toFixed(1) +
                     "ms)" +
                     "\n";
         }
         out += "\n";
-        out += "time per frame: " + (totalTime / EM.loops).toPrecision(3) + "ms";
+        out += "time per frame: " + (totalTime / EM.loops).toFixed(3) + "ms";
         console.log(out);
     },
 };
+//# sourceMappingURL=debugger.js.map

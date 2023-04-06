@@ -5,7 +5,7 @@ import { mat4, quat, vec3 } from "../gl-matrix.js";
 import { TransformDef, PhysicsParentDef, updateFrameFromTransform, updateFrameFromPosRotScale, copyFrame, } from "../physics/transform.js";
 import { ColorDef } from "../color-ecs.js";
 import { MotionSmoothingDef } from "../motion-smoothing.js";
-import { DeletedDef } from "../delete.js";
+import { DeadDef, DeletedDef } from "../delete.js";
 import { computeUniData } from "./pipelines/std-scene.js";
 import { CanvasDef } from "../canvas.js";
 import { FORCE_WEBGL } from "../main.js";
@@ -20,16 +20,17 @@ import { TimeDef } from "../time.js";
 import { PartyDef } from "../game/party.js";
 import { PointLightDef } from "./lights.js";
 import { computeOceanUniData, } from "./pipelines/std-ocean.js";
-import { assert } from "../test.js";
-import { DONT_SMOOTH_WORLD_FRAME, VERBOSE_LOG } from "../flags.js";
+import { assert } from "../util.js";
+import { DONT_SMOOTH_WORLD_FRAME, PERF_DBG_GPU, VERBOSE_LOG, } from "../flags.js";
 const BLEND_SIMULATION_FRAMES_STRATEGY = "none";
-export const RenderableConstructDef = EM.defineComponent("renderableConstruct", (meshOrProto, enabled = true, sortLayer = 0, mask, poolKind = "std") => {
+export const RenderableConstructDef = EM.defineComponent("renderableConstruct", (meshOrProto, enabled = true, sortLayer = 0, mask, poolKind = "std", hidden = false) => {
     const r = {
         enabled,
         sortLayer: sortLayer,
         meshOrProto,
         mask,
         poolKind,
+        hidden,
     };
     return r;
 });
@@ -158,26 +159,50 @@ export function registerUpdateRendererWorldFrames(em) {
     }, "updateRendererWorldFrames");
 }
 const _lastMeshHandlePos = new Map();
+const _lastMeshHandleHidden = new Map();
 export function registerRenderer(em) {
-    em.registerSystem([RendererWorldFrameDef, RenderableDef], [CameraViewDef, RendererDef, TimeDef, PartyDef], (objs, res) => {
+    // NOTE: we use "renderListDeadHidden" and "renderList" to construct a custom
+    //  query of renderable objects that include dead, hidden objects. The reason
+    //  for this is that it causes a more stable entity list when we have object
+    //  pools, and thus we have to rebundle less often.
+    const renderObjs = [];
+    em.registerSystem([RendererWorldFrameDef, RenderableDef, DeadDef], [], (objs, _) => {
+        renderObjs.length = 0;
+        for (let o of objs)
+            if (o.renderable.enabled && o.renderable.hidden && !DeletedDef.isOn(o))
+                renderObjs.push(o);
+    }, "renderListDeadHidden");
+    em.registerSystem([RendererWorldFrameDef, RenderableDef], [], (objs, _) => {
+        for (let o of objs)
+            if (o.renderable.enabled && !DeletedDef.isOn(o))
+                renderObjs.push(o);
+    }, "renderList");
+    em.registerSystem(null, // NOTE: see "renderList*" systems and NOTE above. We use those to construct our query.
+    [CameraViewDef, RendererDef, TimeDef, PartyDef], (_, res) => {
         const renderer = res.renderer.renderer;
         const cameraView = res.cameraView;
-        objs = objs.filter((o) => o.renderable.enabled && !DeletedDef.isOn(o));
+        const objs = renderObjs;
         // ensure our mesh handle is up to date
         for (let o of objs) {
             if (RenderDataStdDef.isOn(o)) {
-                // color / tint
+                if (o.renderable.hidden) {
+                    // TODO(@darzu): hidden stuff is a bit wierd
+                    mat4.fromScaling(o.renderDataStd.transform, vec3.ZEROS);
+                }
                 let tintChange = false;
-                let prevTint = vec3.copy(tempVec3(), o.renderDataStd.tint);
-                if (ColorDef.isOn(o)) {
-                    vec3.copy(o.renderDataStd.tint, o.color);
+                if (!o.renderable.hidden) {
+                    // color / tint
+                    let prevTint = vec3.copy(tempVec3(), o.renderDataStd.tint);
+                    if (ColorDef.isOn(o))
+                        vec3.copy(o.renderDataStd.tint, o.color);
+                    if (TintsDef.isOn(o))
+                        applyTints(o.tints, o.renderDataStd.tint);
+                    if (vec3.sqrDist(prevTint, o.renderDataStd.tint) > 0.01)
+                        tintChange = true;
                 }
-                if (TintsDef.isOn(o)) {
-                    applyTints(o.tints, o.renderDataStd.tint);
-                }
-                if (vec3.sqrDist(prevTint, o.renderDataStd.tint) > 0.01) {
-                    tintChange = true;
-                }
+                let lastHidden = _lastMeshHandleHidden.get(o.renderable.meshHandle.mId);
+                let hiddenChanged = lastHidden !== o.renderable.hidden;
+                _lastMeshHandleHidden.set(o.renderable.meshHandle.mId, o.renderable.hidden);
                 // TODO(@darzu): actually we only set this at creation now so that
                 //  it's overridable for gameplay
                 // id
@@ -186,9 +211,13 @@ export function registerRenderer(em) {
                 // TODO(@darzu): hACK! ONLY UPDATE UNIFORM IF WE"VE MOVED
                 let lastPos = _lastMeshHandlePos.get(o.renderable.meshHandle.mId);
                 const thisPos = o.rendererWorldFrame.position;
-                if (tintChange || !lastPos || vec3.sqrDist(lastPos, thisPos) > 0.01) {
-                    mat4.copy(o.renderDataStd.transform, o.rendererWorldFrame.transform);
-                    res.renderer.renderer.updateStdUniform(o.renderable.meshHandle, o.renderDataStd);
+                if (hiddenChanged ||
+                    tintChange ||
+                    !lastPos ||
+                    vec3.sqrDist(lastPos, thisPos) > 0.01) {
+                    if (!o.renderable.hidden)
+                        mat4.copy(o.renderDataStd.transform, o.rendererWorldFrame.transform);
+                    res.renderer.renderer.stdPool.updateUniform(o.renderable.meshHandle, o.renderDataStd);
                     if (!lastPos) {
                         lastPos = vec3.create();
                         _lastMeshHandlePos.set(o.renderable.meshHandle.mId, lastPos);
@@ -208,7 +237,7 @@ export function registerRenderer(em) {
                 o.renderDataOcean.id = o.renderable.meshHandle.mId;
                 // transform
                 mat4.copy(o.renderDataOcean.transform, o.rendererWorldFrame.transform);
-                res.renderer.renderer.updateOceanUniform(o.renderable.meshHandle, o.renderDataOcean);
+                res.renderer.renderer.oceanPool.updateUniform(o.renderable.meshHandle, o.renderDataOcean);
             }
         }
         // TODO(@darzu): this is currently unused, and maybe should be dropped.
@@ -224,7 +253,7 @@ export function registerRenderer(em) {
         const pointLights = em
             .filterEntities([PointLightDef, RendererWorldFrameDef])
             .map((e) => {
-            e.pointLight.viewProj = positionAndTargetToOrthoViewProjMatrix(mat4.create(), e.rendererWorldFrame.position, cameraView.location);
+            positionAndTargetToOrthoViewProjMatrix(e.pointLight.viewProj, e.rendererWorldFrame.position, cameraView.location);
             let { viewProj, ...rest } = e.pointLight;
             return {
                 viewProj,
@@ -258,8 +287,26 @@ export function registerRenderer(em) {
         // console.log(`pointLights.length: ${pointLights.length}`);
         renderer.updatePointLights(pointLights);
         renderer.submitPipelines(objs.map((o) => o.renderable.meshHandle), res.renderer.pipelines);
-        if (objs.length && res.renderer.pipelines.length)
+        if (objs.length && res.renderer.pipelines.length) {
             dbgLogOnce("first-frame", `Rendering first frame at: ${performance.now().toFixed(2)}ms`);
+        }
+        // Performance logging
+        if (PERF_DBG_GPU) {
+            const stats = res.renderer.renderer.stdPool._stats;
+            const totalBytes = stats._accumTriDataQueued +
+                stats._accumUniDataQueued +
+                stats._accumVertDataQueued;
+            const totalKb = totalBytes / 1024;
+            if (totalKb > 100) {
+                console.log(`Big frame: ${totalKb.toFixed(0)}kb`);
+                console.log(`tris: ${stats._accumTriDataQueued / 1024}kb`);
+                console.log(`uni: ${stats._accumUniDataQueued / 1024}kb`);
+                console.log(`vert: ${stats._accumVertDataQueued / 1024}kb`);
+            }
+            stats._accumTriDataQueued = 0;
+            stats._accumUniDataQueued = 0;
+            stats._accumVertDataQueued = 0;
+        }
     }, "stepRenderer");
 }
 export function registerConstructRenderablesSystem(em) {
@@ -271,15 +318,15 @@ export function registerConstructRenderablesSystem(em) {
                 let mesh;
                 if (isMeshHandle(e.renderableConstruct.meshOrProto)) {
                     assert(e.renderableConstruct.poolKind === "std", `Instanced meshes only supported for std pool`);
-                    meshHandle = res.renderer.renderer.addMeshInstance(e.renderableConstruct.meshOrProto);
+                    meshHandle = res.renderer.renderer.stdPool.addMeshInstance(e.renderableConstruct.meshOrProto);
                     mesh = meshHandle.readonlyMesh;
                 }
                 else {
                     if (e.renderableConstruct.poolKind === "std") {
-                        meshHandle = res.renderer.renderer.addMesh(e.renderableConstruct.meshOrProto);
+                        meshHandle = res.renderer.renderer.stdPool.addMesh(e.renderableConstruct.meshOrProto);
                     }
                     else if (e.renderableConstruct.poolKind === "ocean") {
-                        meshHandle = res.renderer.renderer.addOcean(e.renderableConstruct.meshOrProto);
+                        meshHandle = res.renderer.renderer.oceanPool.addMesh(e.renderableConstruct.meshOrProto);
                     }
                     else {
                         never(e.renderableConstruct.poolKind);
@@ -291,6 +338,7 @@ export function registerConstructRenderablesSystem(em) {
                 }
                 em.addComponent(e.id, RenderableDef, {
                     enabled: e.renderableConstruct.enabled,
+                    hidden: false,
                     sortLayer: e.renderableConstruct.sortLayer,
                     meshHandle,
                 });
@@ -342,12 +390,11 @@ export function registerRenderInitSystem(em) {
     }, "renderInit");
 }
 async function chooseAndInitRenderer(em, shaders, canvas) {
-    var _a;
     let renderer = undefined;
     let usingWebGPU = false;
     if (!FORCE_WEBGL) {
         // try webgpu first
-        const adapter = await ((_a = navigator.gpu) === null || _a === void 0 ? void 0 : _a.requestAdapter());
+        const adapter = await navigator.gpu?.requestAdapter();
         if (adapter) {
             const supportsTimestamp = adapter.features.has("timestamp-query");
             if (!supportsTimestamp && VERBOSE_LOG)
@@ -386,3 +433,4 @@ export function displayWebGPUError() {
       max-width: 600px;`;
     document.getElementsByTagName("body")[0].innerHTML = `<div style="${style}">This page requires WebGPU which isn't yet supported in your browser!<br>Or something else went wrong that was my fault.<br><br>U can try Chrome >106.<br><br>🙂</div>`;
 }
+//# sourceMappingURL=renderer-ecs.js.map

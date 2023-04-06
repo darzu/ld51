@@ -5,7 +5,7 @@ import { LinearVelocityDef } from "../physics/motion.js";
 import { tempVec3 } from "../temp-pool.js";
 import { TimeDef } from "../time.js";
 export const GravityDef = EM.defineComponent("gravity", (gravity) => {
-    return gravity !== null && gravity !== void 0 ? gravity : vec3.create();
+    return gravity ?? vec3.create();
 });
 onInit((em) => {
     em.registerSystem([GravityDef, LinearVelocityDef], [TimeDef], (objs, res) => {
@@ -16,3 +16,4 @@ onInit((em) => {
         }
     }, "applyGravity");
 });
+//# sourceMappingURL=gravity.js.map

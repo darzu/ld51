@@ -7,9 +7,11 @@ export function DefineLayer() {
     return _nextLayer++;
 }
 export const ColliderDef = EM.defineComponent("collider", (c) => {
-    return (c !== null && c !== void 0 ? c : {
-        shape: "Empty",
-        solid: false,
-    });
+    return (c ??
+        {
+            shape: "Empty",
+            solid: false,
+        });
 });
 const __COLLIDER_ASSERT = true;
+//# sourceMappingURL=collider.js.map

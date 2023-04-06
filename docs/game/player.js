@@ -62,7 +62,7 @@ export const LocalPlayerDef = EM.defineComponent("localPlayer", (playerId) => ({
 }));
 export const PlayerPropsDef = defineSerializableComponent(EM, "playerProps", (loc) => {
     return {
-        location: loc !== null && loc !== void 0 ? loc : vec3.create(),
+        location: loc ?? vec3.create(),
     };
 }, (c, writer) => {
     writer.writeVec3(c.location);
@@ -165,8 +165,7 @@ export function registerPlayerSystems(em) {
         GlobalCursor3dDef,
         GameStateDef,
     ], (players, res) => {
-        var _a, _b, _c, _d, _e;
-        const cheat = !!((_a = em.getResource(DevConsoleDef)) === null || _a === void 0 ? void 0 : _a.showConsole);
+        const cheat = !!em.getResource(DevConsoleDef)?.showConsole;
         const { time: { dt }, inputs, camera, physicsResults: { checkRay }, } = res;
         // console.log("stepPlayers");
         //console.log(`${players.length} players, ${hats.length} hats`);
@@ -271,7 +270,8 @@ export function registerPlayerSystems(em) {
             }
             // change physics parent
             if (cheat && inputs.keyClicks["t"]) {
-                const targetId = (_c = (_b = em.getResource(GlobalCursor3dDef)) === null || _b === void 0 ? void 0 : _b.cursor()) === null || _c === void 0 ? void 0 : _c.cursor3d.hitId;
+                const targetId = em.getResource(GlobalCursor3dDef)?.cursor()
+                    ?.cursor3d.hitId;
                 if (targetId) {
                     p.physicsParent.id = targetId;
                     const targetEnt = em.findEntity(targetId, [ColliderDef]);
@@ -291,7 +291,8 @@ export function registerPlayerSystems(em) {
             }
             // delete object
             if (cheat && res.inputs.keyClicks["backspace"]) {
-                const targetId = (_e = (_d = em.getResource(GlobalCursor3dDef)) === null || _d === void 0 ? void 0 : _d.cursor()) === null || _e === void 0 ? void 0 : _e.cursor3d.hitId;
+                const targetId = em.getResource(GlobalCursor3dDef)?.cursor()
+                    ?.cursor3d.hitId;
                 if (targetId)
                     em.ensureComponent(targetId, DeletedDef);
             }
@@ -383,3 +384,4 @@ export function registerPlayerSystems(em) {
         }
     }, "playerLookingForShip");
 }
+//# sourceMappingURL=player.js.map

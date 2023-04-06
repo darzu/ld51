@@ -1,6 +1,5 @@
-var _a;
-import { VERBOSE_LOG } from "../flags.js";
-import { assert } from "../test.js";
+import { PERF_DBG_GPU, VERBOSE_LOG } from "../flags.js";
+import { assert } from "../util.js";
 import { never, capitalize, pluralize, uncapitalize, isString, isFunction, } from "../util.js";
 import { createCyArray, createCySingleton, createCyIdxBuf, createCyTexture, createCyDepthTexture, } from "./data-webgpu.js";
 import { isResourcePtr, isRenderPipelinePtr, } from "./gpu-registry.js";
@@ -17,7 +16,6 @@ const prim_lines = {
     topology: "line-list",
 };
 export function createCyResources(cy, shaders, device) {
-    var _a, _b, _c;
     const start = performance.now();
     // determine resource usage modes
     // TODO(@darzu): determine texture usage modes
@@ -157,17 +155,26 @@ export function createCyResources(cy, shaders, device) {
         const lengthOrData = typeof r.init === "number" ? r.init : r.init();
         const buf = createCyArray(device, r.struct, usage, lengthOrData);
         kindToNameToRes.array[r.name] = buf;
+        if (PERF_DBG_GPU) {
+            console.log(`CyArray ${r.name}: ${r.struct.size * buf.length}b`);
+        }
     });
     // create one-buffers
     cy.kindToPtrs.singleton.forEach((r) => {
         const usage = cyNameToBufferUsage[r.name];
         const buf = createCySingleton(device, r.struct, usage, r.init ? r.init() : undefined);
         kindToNameToRes.singleton[r.name] = buf;
+        if (PERF_DBG_GPU) {
+            console.log(`CySingleton ${r.name}: ${r.struct.size}b`);
+        }
     });
     // create idx-buffers
     cy.kindToPtrs.idxBuffer.forEach((r) => {
         const buf = createCyIdxBuf(device, r.init());
         kindToNameToRes.idxBuffer[r.name] = buf;
+        if (PERF_DBG_GPU) {
+            console.log(`CyIdx ${r.name}: ${buf.size}b`);
+        }
     });
     // create mesh pools
     cy.kindToPtrs.meshPool.forEach((r) => {
@@ -201,10 +208,9 @@ export function createCyResources(cy, shaders, device) {
     });
     // TODO(@darzu): not very elegant
     function getBufferBindingType(ptr, shaderStage) {
-        var _a;
         // TODO(@darzu): more precise?
         let bindingType = "storage";
-        if ((_a = ptr.struct.opts) === null || _a === void 0 ? void 0 : _a.isUniform)
+        if (ptr.struct.opts?.isUniform)
             bindingType = "uniform";
         else if ((shaderStage & GPUShaderStage.VERTEX) !== 0)
             // NOTE: writable storage is not allowed in the vertex stage
@@ -224,7 +230,6 @@ export function createCyResources(cy, shaders, device) {
         // TODO(@darzu): move helpers elsewhere?
         // TODO(@darzu): dynamic is wierd to pass here
         function mkGlobalLayoutEntry(idx, r, dynamic) {
-            var _a;
             if (r.ptr.kind === "singleton" || r.ptr.kind === "array") {
                 let bindingType = getBufferBindingType(r.ptr, shaderStage);
                 return r.ptr.struct.layout(idx, shaderStage, bindingType, dynamic);
@@ -246,7 +251,7 @@ export function createCyResources(cy, shaders, device) {
                     }
                     else {
                         // TODO(@darzu): better sample type selection?
-                        sampleType = ((_a = texTypeToSampleType[r.ptr.format]) !== null && _a !== void 0 ? _a : ["float"])[0];
+                        sampleType = (texTypeToSampleType[r.ptr.format] ?? ["float"])[0];
                     }
                     return {
                         binding: idx,
@@ -334,13 +339,13 @@ export function createCyResources(cy, shaders, device) {
             }
         }
         function globalToWgslVars(r, plurality, groupIdx, bindingIdx, stage) {
-            var _a, _b, _c;
             if (r.ptr.kind === "singleton" || r.ptr.kind === "array") {
                 const usage = getBufferBindingType(r.ptr, stage);
                 const varPrefix = GPUBufferBindingTypeToWgslVar[usage];
-                const varName = (_a = r.alias) !== null && _a !== void 0 ? _a : (plurality === "one"
-                    ? uncapitalize(r.ptr.name)
-                    : pluralize(uncapitalize(r.ptr.name)));
+                const varName = r.alias ??
+                    (plurality === "one"
+                        ? uncapitalize(r.ptr.name)
+                        : pluralize(uncapitalize(r.ptr.name)));
                 // console.log(varName); // TODO(@darzu):
                 const varType = plurality === "one"
                     ? capitalize(r.ptr.name)
@@ -349,7 +354,7 @@ export function createCyResources(cy, shaders, device) {
                 return `@group(${groupIdx}) @binding(${bindingIdx}) ${varPrefix} ${varName} : ${varType};`;
             }
             else if (r.ptr.kind === "texture" || r.ptr.kind === "depthTexture") {
-                const varName = (_b = r.alias) !== null && _b !== void 0 ? _b : uncapitalize(r.ptr.name);
+                const varName = r.alias ?? uncapitalize(r.ptr.name);
                 if (!r.access || r.access === "read") {
                     // TODO(@darzu): handle other formats?
                     if (r.ptr.kind === "depthTexture") {
@@ -366,7 +371,7 @@ export function createCyResources(cy, shaders, device) {
                     return `@group(${groupIdx}) @binding(${bindingIdx}) var ${varName} : texture_storage_2d<${r.ptr.format}, ${r.access}>;`;
             }
             else if (r.ptr.kind === "sampler") {
-                const varName = (_c = r.alias) !== null && _c !== void 0 ? _c : uncapitalize(r.ptr.name);
+                const varName = r.alias ?? uncapitalize(r.ptr.name);
                 if (r.ptr.name === "comparison")
                     return `@group(${groupIdx}) @binding(${bindingIdx}) var ${varName} : sampler_comparison;`;
                 else
@@ -418,8 +423,8 @@ export function createCyResources(cy, shaders, device) {
             }
             const primitive = {
                 topology: "triangle-list",
-                cullMode: (_a = p.cullMode) !== null && _a !== void 0 ? _a : "back",
-                frontFace: (_b = p.frontFace) !== null && _b !== void 0 ? _b : "ccw",
+                cullMode: p.cullMode ?? "back",
+                frontFace: p.frontFace ?? "ccw",
             };
             if (p.meshOpt.stepMode === "per-instance") {
                 const vertBuf = kindToNameToRes.array[p.meshOpt.vertex.name];
@@ -603,7 +608,7 @@ export function createCyResources(cy, shaders, device) {
                     module: device.createShaderModule({
                         code: shaderStr,
                     }),
-                    entryPoint: (_c = p.shaderComputeEntry) !== null && _c !== void 0 ? _c : "main",
+                    entryPoint: p.shaderComputeEntry ?? "main",
                     constants: p.overrides,
                 },
             });
@@ -654,9 +659,8 @@ function normalizeGlobals(globals) {
     });
     return resUsages;
 }
-const canvasFormat = (_a = navigator.gpu) === null || _a === void 0 ? void 0 : _a.getPreferredCanvasFormat();
+const canvasFormat = navigator.gpu?.getPreferredCanvasFormat();
 export function bundleRenderPipelines(device, resources, renderPipelines, meshHandleIds) {
-    var _a;
     const bundles = [];
     let dbgNumTris = 0;
     // record all the draw calls we'll need in a bundle which we'll replay during the render loop each frame.
@@ -671,7 +675,7 @@ export function bundleRenderPipelines(device, resources, renderPipelines, meshHa
         // TODO(@darzu): create once?
         const bundleEnc = device.createRenderBundleEncoder({
             colorFormats,
-            depthStencilFormat: (_a = p.ptr.depthStencil) === null || _a === void 0 ? void 0 : _a.format,
+            depthStencilFormat: p.ptr.depthStencil?.format,
             // TODO(@darzu): ANTI-ALIAS
             // sampleCount: antiAliasSampleCount,
         });
@@ -784,12 +788,11 @@ export function startBundleRenderer(context, commandEncoder, resources) {
     let seenDepthTextures = new Set();
     function render(p, bundle) {
         let colorAttachments = p.output.map((o) => {
-            var _a;
             const isFirst = !seenTextures.has(o.ptr.name);
             seenTextures.add(o.ptr.name);
             let tex = resources.kindToNameToRes.texture[o.ptr.name];
             const doClear = isFirst ? o.clear === "once" : o.clear === "always";
-            const defaultColor = (_a = o.defaultColor) !== null && _a !== void 0 ? _a : [0, 0, 0, 1];
+            const defaultColor = o.defaultColor ?? [0, 0, 0, 1];
             const viewOverride = o.ptr.attachToCanvas
                 ? context.getCurrentTexture().createView()
                 : undefined;
@@ -817,10 +820,9 @@ export function startBundleRenderer(context, commandEncoder, resources) {
     }
     // TODO(@darzu): support multi-output
     function isOutputEq(a, b) {
-        var _a, _b;
         return (a.output.length === b.output.length &&
             a.output.every((a, i) => a.ptr.name === b.output[i].ptr.name) &&
-            ((_a = a.ptr.depthStencil) === null || _a === void 0 ? void 0 : _a.name) === ((_b = b.ptr.depthStencil) === null || _b === void 0 ? void 0 : _b.name));
+            a.ptr.depthStencil?.name === b.ptr.depthStencil?.name);
     }
     return { render };
 }
@@ -871,3 +873,4 @@ export function onCanvasResizeAll(device, context, resources, canvasSize) {
         }
     }
 }
+//# sourceMappingURL=instantiator-webgpu.js.map

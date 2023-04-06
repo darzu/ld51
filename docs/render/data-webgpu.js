@@ -1,17 +1,16 @@
 import { align } from "../math.js";
-import { assert } from "../test.js";
+import { assert, assertDbg } from "../util.js";
 import { isNumber } from "../util.js";
 import { texTypeIsStencil, texTypeToBytes, } from "./gpu-struct.js";
 import { isRenderPipelinePtr, } from "./gpu-registry.js";
 import { GPUBufferUsage } from "./webgpu-hacks.js";
-import { GPU_DBG_PERF } from "../flags.js";
+import { PERF_DBG_GPU } from "../flags.js";
 export function isRenderPipeline(p) {
     return isRenderPipelinePtr(p.ptr);
 }
 export let _gpuQueueBufferWriteBytes = 0;
 export function createCySingleton(device, struct, usage, initData) {
-    var _a;
-    assert((_a = struct.opts) === null || _a === void 0 ? void 0 : _a.isUniform, "CyOne struct must be created with isUniform");
+    assert(struct.opts?.isUniform, "CyOne struct must be created with isUniform");
     const _buf = device.createBuffer({
         size: struct.size,
         // TODO(@darzu): parameterize these
@@ -37,11 +36,10 @@ export function createCySingleton(device, struct, usage, initData) {
         // TODO(@darzu): measure perf. we probably want to allow hand written serializers
         buf.lastData = data;
         const b = struct.serialize(data);
-        // assert(b.length % 4 === 0, `buf write must be 4 byte aligned: ${b.length}`);
-        if (GPU_DBG_PERF) {
-            _gpuQueueBufferWriteBytes += b.length;
-        }
+        assertDbg(b.byteLength % 4 === 0, `alignment`);
         device.queue.writeBuffer(_buf, 0, b);
+        if (PERF_DBG_GPU)
+            _gpuQueueBufferWriteBytes += b.byteLength;
     }
     function binding(idx, plurality) {
         // TODO(@darzu): more binding options?
@@ -77,35 +75,48 @@ export function createCyArray(device, struct, usage, lenOrData) {
         queueUpdates,
         binding,
     };
-    const stride = struct.size;
     if (hasInitData) {
         const data = lenOrData;
         const mappedBuf = new Uint8Array(_buf.getMappedRange());
         for (let i = 0; i < data.length; i++) {
             const d = struct.serialize(data[i]);
-            mappedBuf.set(d, i * stride);
+            mappedBuf.set(d, i * struct.size);
         }
         _buf.unmap();
     }
     function queueUpdate(data, index) {
         const b = struct.serialize(data);
-        // TODO(@darzu): disable for perf?
-        // assert(b.length % 4 === 0);
-        if (GPU_DBG_PERF) {
+        const bufOffset = index * struct.size;
+        assertDbg(bufOffset % 4 === 0, `alignment`);
+        assertDbg(b.length % 4 === 0, `alignment`);
+        device.queue.writeBuffer(_buf, bufOffset, b);
+        if (PERF_DBG_GPU)
             _gpuQueueBufferWriteBytes += b.length;
-        }
-        device.queue.writeBuffer(_buf, index * stride, b);
     }
-    function queueUpdates(data, index) {
-        const serialized = new Uint8Array(stride * data.length);
-        data.forEach((d, i) => {
-            serialized.set(struct.serialize(d), stride * i);
-        });
-        // assert(serialized.length % 4 === 0);
-        if (GPU_DBG_PERF) {
-            _gpuQueueBufferWriteBytes += serialized.length;
+    // TODO(@darzu): somewhat hacky way to reuse Uint8Arrays here; we could do some more global pool
+    //    of these.
+    let tempUint8Array = new Uint8Array(struct.size * 10);
+    function queueUpdates(data, bufIdx, dataIdx, // TODO(@darzu): make last two params optional?
+    dataCount) {
+        // TODO(@darzu): IMPL
+        // TODO(@darzu): PERF. probably a good idea to keep the serialized array
+        //  around and modify that directly for many scenarios that need frequent
+        //  updates.
+        const dataSize = struct.size * dataCount;
+        if (tempUint8Array.byteLength <= dataSize) {
+            tempUint8Array = new Uint8Array(dataSize);
         }
-        device.queue.writeBuffer(_buf, index * stride, serialized);
+        const serialized = tempUint8Array;
+        // TODO(@darzu): DBG HACK! USE TEMP!
+        // const serialized = new Uint8Array(dataSize);
+        for (let i = dataIdx; i < dataIdx + dataCount; i++)
+            serialized.set(struct.serialize(data[i]), struct.size * (i - dataIdx));
+        const bufOffset = bufIdx * struct.size;
+        assertDbg(dataSize % 4 === 0, `alignment`);
+        assertDbg(bufOffset % 4 === 0, `alignment`);
+        device.queue.writeBuffer(_buf, bufOffset, serialized, 0, dataSize);
+        if (PERF_DBG_GPU)
+            _gpuQueueBufferWriteBytes += dataSize;
     }
     function binding(idx, plurality) {
         const size = plurality === "one" ? struct.size : length * struct.size;
@@ -140,13 +151,12 @@ export function createCyIdxBuf(device, lenOrData) {
         _buf.unmap();
     }
     function queueUpdate(data, startIdx) {
-        const startByte = startIdx * Uint16Array.BYTES_PER_ELEMENT;
-        // const byteView = new Uint8Array(data);
-        // assert(data.length % 2 === 0);
-        if (GPU_DBG_PERF) {
-            _gpuQueueBufferWriteBytes += data.length;
-        }
+        const startByte = startIdx * 2;
+        assertDbg(data.byteLength % 4 === 0, `alignment`);
+        assertDbg(startByte % 4 === 0, `alignment`);
         device.queue.writeBuffer(_buf, startByte, data);
+        if (PERF_DBG_GPU)
+            _gpuQueueBufferWriteBytes += data.byteLength;
     }
     return buf;
 }
@@ -169,18 +179,20 @@ export function createCyTexture(device, ptr, usage) {
     };
     resize(size[0], size[1]);
     if (init) {
-        queueUpdate(init());
+        const data = init();
+        if (PERF_DBG_GPU)
+            console.log(`creating texture of size: ${(data.length * 4) / 1024}kb`);
+        queueUpdate(data);
     }
     const black = [0, 0, 0, 1];
     return cyTex;
     function resize(width, height) {
-        var _a;
         cyTex.size[0] = width;
         cyTex.size[1] = height;
         // TODO(@darzu): feels wierd to mutate the descriptor...
         ptr.size[0] = width;
         ptr.size[1] = height;
-        (_a = cyTex.texture) === null || _a === void 0 ? void 0 : _a.destroy();
+        cyTex.texture?.destroy();
         cyTex.texture = device.createTexture({
             size: cyTex.size,
             format: format,
@@ -203,11 +215,10 @@ export function createCyTexture(device, ptr, usage) {
         });
     }
     function attachment(opts) {
-        var _a, _b;
-        const loadOp = (opts === null || opts === void 0 ? void 0 : opts.doClear) ? "clear" : "load";
-        const backgroundColor = (_a = opts === null || opts === void 0 ? void 0 : opts.defaultColor) !== null && _a !== void 0 ? _a : black;
+        const loadOp = opts?.doClear ? "clear" : "load";
+        const backgroundColor = opts?.defaultColor ?? black;
         return {
-            view: (_b = opts === null || opts === void 0 ? void 0 : opts.viewOverride) !== null && _b !== void 0 ? _b : cyTex.texture.createView(),
+            view: opts?.viewOverride ?? cyTex.texture.createView(),
             loadOp,
             clearValue: backgroundColor,
             storeOp: "store",
@@ -235,3 +246,4 @@ export function createCyDepthTexture(device, ptr, usage) {
         };
     }
 }
+//# sourceMappingURL=data-webgpu.js.map

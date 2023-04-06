@@ -1,5 +1,5 @@
 import { mat4, vec3 } from "../../gl-matrix.js";
-import { assert } from "../../test.js";
+import { assert } from "../../util.js";
 import { comparisonSamplerPtr, CY, linearSamplerPtr } from "../gpu-registry.js";
 import { createCyStruct } from "../gpu-struct.js";
 import { pointLightsPtr } from "../lights.js";
@@ -79,7 +79,9 @@ const oceanUnisPtr = CY.createArray("oceanUni", {
     init: MAX_OCEAN_MESHES,
 });
 // TODO(@darzu): de-duplicate with std-scene's computeVertsData
-function computeOceanVertsData(m) {
+function computeOceanVertsData(m, 
+// TODO(@darzu): this isn't implemented right; needs to account for startIdx and count
+startIdx, count) {
     assert(!!m.normals, "ocean meshes assumed to have normals");
     assert(!!m.tangents, "ocean meshes assumed to have tangents");
     // TODO(@darzu): change
@@ -160,3 +162,4 @@ export const renderOceanPipe = CY.createRenderPipeline("oceanRender", {
   ${shaderSet["std-ocean"].code}
   `,
 });
+//# sourceMappingURL=std-ocean.js.map

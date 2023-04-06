@@ -16,7 +16,7 @@ import { BulletDef } from "./bullet.js";
 import { DeletedDef, OnDeleteDef } from "../delete.js";
 import { LifetimeDef } from "./lifetime.js";
 import { PlayerShipLocalDef } from "./player-ship.js";
-import { MusicDef } from "../music.js";
+import { AudioDef } from "../audio.js";
 import { defineNetEntityHelper } from "../em_helpers.js";
 import { DetectedEventsDef, eventWizard } from "../net/events.js";
 import { raiseBulletEnemyShip } from "./bullet-collision.js";
@@ -56,11 +56,11 @@ export const { EnemyShipPropsDef, EnemyShipLocalDef, createEnemyShip } = defineN
     name: "enemyShip",
     defaultProps: (uvLoc, speed, wheelSpeed, uvDir, parent) => {
         return {
-            uvLoc: uvLoc !== null && uvLoc !== void 0 ? uvLoc : vec2.fromValues(0, 0),
-            speed: speed !== null && speed !== void 0 ? speed : 0.0,
-            wheelSpeed: wheelSpeed !== null && wheelSpeed !== void 0 ? wheelSpeed : 0.0,
-            uvDir: uvDir !== null && uvDir !== void 0 ? uvDir : vec2.fromValues(1, 0),
-            parent: parent !== null && parent !== void 0 ? parent : 0,
+            uvLoc: uvLoc ?? vec2.fromValues(0, 0),
+            speed: speed ?? 0.0,
+            wheelSpeed: wheelSpeed ?? 0.0,
+            uvDir: uvDir ?? vec2.fromValues(1, 0),
+            parent: parent ?? 0,
         };
     },
     serializeProps: (c, buf) => {
@@ -167,7 +167,7 @@ export const { EnemyShipPropsDef, EnemyShipLocalDef, createEnemyShip } = defineN
 });
 export const ENEMY_SHIP_COLOR = [0.2, 0.1, 0.05];
 export const raiseBreakEnemyShip = eventWizard("break-enemyShip", [[EnemyShipLocalDef, PositionDef, RotationDef]], ([enemyShip]) => {
-    const res = EM.getResources([AssetsDef, MusicDef]);
+    const res = EM.getResources([AssetsDef, AudioDef]);
     breakEnemyShip(EM, enemyShip, res.assets.boat_broken, res.music);
 });
 export function registerEnemyShipSystems(em) {
@@ -187,7 +187,7 @@ export function registerEnemyShipSystems(em) {
                 continue;
             // TODO(@darzu): COUNT DOWN FIREZONE
             const hits = res.physicsResults.collidesWith.get(o.enemyShipLocal.fireZoneId);
-            const seesPlayer = hits === null || hits === void 0 ? void 0 : hits.some((h) => !!em.findEntity(h, [PlayerShipLocalDef]));
+            const seesPlayer = hits?.some((h) => !!em.findEntity(h, [PlayerShipLocalDef]));
             if (seesPlayer) {
                 o.enemyShipLocal.fireDelay -= res.time.dt;
                 // console.log(o.enemyShip.fireDelay);
@@ -212,7 +212,7 @@ export function registerEnemyShipSystems(em) {
             }
         }
     }, "enemyShipsFire");
-    em.registerSystem([EnemyShipLocalDef, PositionDef, RotationDef], [PhysicsResultsDef, AssetsDef, MusicDef, MeDef, DetectedEventsDef], (objs, res) => {
+    em.registerSystem([EnemyShipLocalDef, PositionDef, RotationDef], [PhysicsResultsDef, AssetsDef, AudioDef, MeDef, DetectedEventsDef], (objs, res) => {
         for (let enemyShip of objs) {
             const hits = res.physicsResults.collidesWith.get(enemyShip.id);
             if (hits) {
@@ -234,7 +234,7 @@ export function registerEnemyShipSystems(em) {
 }
 export function breakEnemyShip(em, enemyShip, enemyShipParts, music) {
     em.ensureComponentOn(enemyShip, DeletedDef);
-    music.playChords([3], "minor", 2.0, 5.0, -1);
+    music.playChords([3], "minor", 2.0, 1.0, -1);
     for (let part of enemyShipParts) {
         const pe = em.newEntity();
         // TODO(@darzu): use some sort of chunks particle system, we don't
@@ -269,3 +269,4 @@ export const FireZoneDef = EM.defineComponent("firezone", () => { });
 export function spawnEnemyShip(loc, parentId, uvDir) {
     return createEnemyShip(loc, 0.0002 + jitter(0.0001), jitter(0.00005), uvDir, parentId);
 }
+//# sourceMappingURL=enemy-ship.js.map

@@ -4,9 +4,10 @@ import { BLACK, } from "./game/assets.js";
 import { BulletDef } from "./game/bullet.js";
 import { GravityDef } from "./game/gravity.js";
 import { mat4, quat, vec2, vec3, vec4 } from "./gl-matrix.js";
+import { createIdxPool } from "./idx-pool.js";
 import { onInit } from "./init.js";
 import { jitter } from "./math.js";
-import { MusicDef } from "./music.js";
+import { AudioDef } from "./audio.js";
 import { copyAABB, copyLine, createAABB, createLine, doesOverlapAABB, emptyLine, getAABBFromPositions, getLineEnd, getLineMid, lineSphereIntersections, mergeAABBs, transformAABB, transformLine, } from "./physics/broadphase.js";
 import { ColliderDef } from "./physics/collider.js";
 import { AngularVelocityDef, LinearVelocityDef } from "./physics/motion.js";
@@ -15,10 +16,18 @@ import { PhysicsParentDef, PositionDef, RotationDef, } from "./physics/transform
 import { getQuadMeshEdges, meshStats, normalizeMesh, } from "./render/mesh.js";
 import { RenderableConstructDef, RenderableDef, RendererDef, } from "./render/renderer-ecs.js";
 import { tempVec3 } from "./temp-pool.js";
-import { assert } from "./test.js";
+import { assert, assertDbg, createIntervalTracker } from "./util.js";
 import { range } from "./util.js";
 import { centroid, quatFromUpForward, randNormalVec3, vec3Dbg, } from "./utils-3d.js";
 import { createSplinterPool } from "./wood-splinters.js";
+import { VERBOSE_LOG } from "./flags.js";
+/* TODO(@darzu):
+[ ] standardize naming: wood or timber or ??
+[ ] remove gameplay specific stuff like
+  [ ] pirate ship
+  [ ] health values
+  [ ] BulletDef
+*/
 // TODO(@darzu): consider other mesh representations like:
 //    DCEL or half-edge data structure
 // export const WoodenDef = EM.defineComponent("wooden", () => {
@@ -26,6 +35,14 @@ import { createSplinterPool } from "./wood-splinters.js";
 //     // TODO(@darzu): options?
 //   };
 // });
+/*
+So how could wood + splinters work on the GPU?
+Compute shader computes the triangles and vertices,
+  based on control points: location, orientation, width, depthi
+What does compute shader gain us?
+  Less CPU->GPU bandwidth used
+  Less CPU work
+*/
 export const WoodStateDef = EM.defineComponent("woodState", (s) => {
     return s;
 });
@@ -56,6 +73,7 @@ onInit((em) => {
                 });
                 for (let _ball of balls) {
                     const ball = _ball;
+                    // console.log(`hit: ${ball.id}`);
                     // TODO(@darzu): move a bunch of the below into physic system features!
                     assert(ball.collider.shape === "AABB");
                     copyAABB(ballAABBWorld, ball.collider.aabb);
@@ -65,6 +83,7 @@ onInit((em) => {
                         org: ball.world.position,
                         rad: (ballAABBWorld.max[0] - ballAABBWorld.min[0]) * 0.5,
                     };
+                    // TODO(@darzu): PERF. have groups of boards. Maybe "walls". Or just an oct-tree.
                     w.woodState.boards.forEach((board, boardIdx) => {
                         if (ball.bullet.health <= 0)
                             return;
@@ -83,12 +102,12 @@ onInit((em) => {
                             overlapChecks++;
                             if (doesOverlapAABB(ballAABBWorld, segAABBWorld)) {
                                 segAABBHits += 1;
-                                for (let qi of seg.quadSideIdxs) {
-                                    if (DBG_COLOR && mesh.colors[qi][1] < 1) {
-                                        // dont change green to red
-                                        mesh.colors[qi] = [1, 0, 0];
-                                    }
-                                }
+                                // for (let qi of seg.quadSideIdxs) {
+                                //   if (DBG_COLOR && mesh.colors[qi][1] < 1) {
+                                //     // dont change green to red
+                                //     mesh.colors[qi] = [1, 0, 0];
+                                //   }
+                                // }
                                 // does the ball hit the middle of the segment?
                                 copyLine(worldLine, seg.midLine);
                                 transformLine(worldLine, w.world.transform);
@@ -96,10 +115,10 @@ onInit((em) => {
                                 if (midHits) {
                                     // console.log(`mid hit: ${midHits}`);
                                     segMidHits += 1;
-                                    if (DBG_COLOR)
-                                        for (let qi of seg.quadSideIdxs) {
-                                            mesh.colors[qi] = [0, 1, 0];
-                                        }
+                                    // if (DBG_COLOR)
+                                    //   for (let qi of seg.quadSideIdxs) {
+                                    //     mesh.colors[qi] = [0, 1, 0];
+                                    //   }
                                     // TODO(@darzu): cannon ball health stuff!
                                     const woodHealth = w.woodHealth.boards[boardIdx][segIdx];
                                     const dmg = Math.min(woodHealth.health, ball.bullet.health) + 0.001;
@@ -114,9 +133,9 @@ onInit((em) => {
                                             fn(w.physicsParent.id, w);
                                     }
                                     else if (ball.bullet.team === 2) {
-                                        const music = EM.getResource(MusicDef);
+                                        const music = EM.getResource(AudioDef);
                                         if (music)
-                                            music.playChords([2, 3], "minor", 0.2, 5.0, -2);
+                                            music.playChords([2, 3], "minor", 0.2, 1.0, -2);
                                     }
                                 }
                             }
@@ -126,7 +145,7 @@ onInit((em) => {
             }
             if (DBG_COLOR && (segAABBHits > 0 || segMidHits > 0)) {
                 // TODO(@darzu): really need sub-mesh updateMesh
-                res.renderer.renderer.updateMeshVertices(meshHandle, mesh);
+                // res.renderer.renderer.stdPool.updateMeshVertices(meshHandle, mesh);
                 // res.renderer.renderer.updateMeshIndices(meshHandle, mesh);
             }
         }
@@ -160,15 +179,14 @@ export let _numSplinterEnds = 0;
 let _ONCE = true;
 onInit((em) => {
     em.registerSystem([WoodStateDef, WorldFrameDef, WoodHealthDef, RenderableDef, ColorDef], [RendererDef], async (es, res) => {
-        var _a;
         // TODO(@darzu):
         for (let w of es) {
             // TODO(@darzu): track start and end offsets for each
-            let needsIndicesUpdate = false;
-            let needsVertsUpdate = false;
+            let splinterIndUpdated = [];
+            let segQuadIndUpdated = [];
             const meshHandle = w.renderable.meshHandle;
             const mesh = meshHandle.readonlyMesh;
-            if (_ONCE && ((_a = mesh.dbgName) === null || _a === void 0 ? void 0 : _a.includes("home"))) {
+            if (VERBOSE_LOG && _ONCE && mesh.dbgName?.includes("home")) {
                 // console.log(`mesh: ${meshStats(mesh)}`);
                 // console.log(`woodMesh: ${meshStats(w.woodState.mesh)}`);
                 // if (meshHandle.triNum !== mesh.tri.length) {
@@ -184,17 +202,33 @@ onInit((em) => {
             w.woodState.boards.forEach((board, bIdx) => {
                 let pool = undefined;
                 board.segments.forEach((seg, sIdx) => {
-                    var _a, _b;
                     const h = w.woodHealth.boards[bIdx][sIdx];
                     if (!h.broken && h.health <= 0) {
                         h.broken = true;
-                        hideSegment(seg, mesh);
-                        needsIndicesUpdate = true;
+                        // TODO(@darzu): how to unhide?
+                        // TODO(@darzu): probably a more efficient way to do this..
+                        let qMin = Infinity;
+                        let qMax = -Infinity;
+                        for (let qi of [
+                            ...seg.quadSideIdxs,
+                            // TODO(@darzu): PERF. how performant is the below?
+                            ...(seg.quadBackIdx ? [seg.quadBackIdx] : []),
+                            ...(seg.quadFrontIdx ? [seg.quadFrontIdx] : []),
+                        ]) {
+                            const q = mesh.quad[qi];
+                            vec4.set(q, 0, 0, 0, 0);
+                            qMin = Math.min(qMin, qi);
+                            qMax = Math.max(qMax, qi);
+                        }
+                        // todo something is wrong with seg quads here!!
+                        // console.log(`seg quad: ${qMin} ${qMax}`);
+                        segQuadIndUpdated.push({ min: qMin, max: qMax });
                         // get the board's pool
                         if (!pool) {
                             const poolKey = `w${seg.width.toFixed(1)}_d${seg.depth.toFixed(1)}_c${vec3Dbg(w.color)}`;
                             if (!splinterPools.has(poolKey)) {
-                                console.log(`new splinter pool!: ${poolKey}`);
+                                if (VERBOSE_LOG)
+                                    console.log(`new splinter pool!: ${poolKey}`);
                                 pool = createSplinterPool(seg.width, seg.depth, 1, vec3.clone(w.color), 40);
                                 splinterPools.set(poolKey, pool);
                             }
@@ -227,28 +261,28 @@ onInit((em) => {
                         }
                         if (h.prev && !h.prev.broken) {
                             // create end caps
-                            if (w.woodState.splinterState) {
-                                const splinterGen = w.woodState.splinterState.generation;
-                                const splinterIdx = addSplinterEnd(seg, w.woodState, false);
+                            assert(w.woodState.splinterState);
+                            // const splinterGen = w.woodState.splinterState.generation;
+                            const splinterIdx = addSplinterEnd(seg, w.woodState, false);
+                            if (splinterIdx !== undefined) {
                                 h.splinterBotIdx = splinterIdx;
-                                h.splinterBotGeneration = splinterGen;
-                                needsIndicesUpdate = true;
-                                needsVertsUpdate = true;
+                                // h.splinterBotGeneration = splinterGen;
                                 _numSplinterEnds++;
+                                splinterIndUpdated.push(splinterIdx);
                             }
                         }
                         if (h.next && !h.next.broken) {
-                            if (w.woodState.splinterState) {
-                                const splinterGen = w.woodState.splinterState.generation;
-                                const splinterIdx = addSplinterEnd(seg, w.woodState, true);
+                            assert(w.woodState.splinterState);
+                            // const splinterGen = w.woodState.splinterState.generation;
+                            const splinterIdx = addSplinterEnd(seg, w.woodState, true);
+                            if (splinterIdx !== undefined) {
                                 h.splinterTopIdx = splinterIdx;
-                                h.splinterTopGeneration = splinterGen;
-                                needsIndicesUpdate = true;
-                                needsVertsUpdate = true;
+                                // h.splinterTopGeneration = splinterGen;
                                 _numSplinterEnds++;
+                                splinterIndUpdated.push(splinterIdx);
                             }
                         }
-                        if (((_a = h.next) === null || _a === void 0 ? void 0 : _a.splinterBotIdx) !== undefined &&
+                        if (h.next?.splinterBotIdx !== undefined &&
                             w.woodState.splinterState) {
                             // TODO(@darzu): ugly
                             // TODO(@darzu): this generation stuff seems somewhat broken
@@ -264,11 +298,13 @@ onInit((em) => {
                             // } else {
                             //   // console.log(`skipping removal b/c generation mismatch!`);
                             // }
+                            splinterIndUpdated.push(h.next.splinterBotIdx);
+                            w.woodState.splinterState.splinterIdxPool.free(h.next.splinterBotIdx);
                             h.next.splinterBotIdx = undefined;
-                            h.next.splinterBotGeneration = undefined;
+                            // h.next.splinterBotGeneration = undefined;
                             _numSplinterEnds--;
                         }
-                        if (((_b = h.prev) === null || _b === void 0 ? void 0 : _b.splinterTopIdx) !== undefined &&
+                        if (h.prev?.splinterTopIdx !== undefined &&
                             w.woodState.splinterState) {
                             // if (
                             //   h.splinterTopGeneration ===
@@ -282,22 +318,45 @@ onInit((em) => {
                             // } else {
                             //   // console.log(`skipping removal b/c generation mismatch!`);
                             // }
+                            splinterIndUpdated.push(h.prev.splinterTopIdx);
+                            w.woodState.splinterState.splinterIdxPool.free(h.prev.splinterTopIdx);
                             h.prev.splinterTopIdx = undefined;
-                            h.prev.splinterTopGeneration = undefined;
+                            // h.prev.splinterTopGeneration = undefined;
                             _numSplinterEnds--;
                         }
                     }
                 });
             });
-            if (needsIndicesUpdate) {
-                // console.log(`needsIndicesUpdate`);
-                // TODO(@darzu): really need sub-mesh updateMesh
-                res.renderer.renderer.updateMeshIndices(meshHandle, mesh);
-            }
-            if (needsVertsUpdate) {
-                // console.log(`needsVertsUpdate`);
-                // TODO(@darzu): really need sub-mesh updateMesh
-                res.renderer.renderer.updateMeshVertices(meshHandle, mesh);
+            const ws = w.woodState;
+            if (ws.splinterState &&
+                (splinterIndUpdated.length || segQuadIndUpdated.length)) {
+                // TODO(@darzu): probably just create these trackers above? Persist them
+                //    frame to frame.
+                const triIntervals = createIntervalTracker(100);
+                const quadIntervals = createIntervalTracker(100);
+                const vertIntervals = createIntervalTracker(100);
+                for (let spI of splinterIndUpdated) {
+                    const tMin = ws.splinterState.triOffset + spI * _trisPerSplinter;
+                    const tMax = tMin + _trisPerSplinter - 1;
+                    triIntervals.addRange(tMin, tMax);
+                    const qMin = ws.splinterState.quadOffset + spI * _quadsPerSplinter;
+                    const qMax = qMin + _quadsPerSplinter - 1;
+                    quadIntervals.addRange(qMin, qMax);
+                    const vMin = ws.splinterState.vertOffset + spI * _vertsPerSplinter;
+                    const vMax = vMin + _vertsPerSplinter - 1;
+                    vertIntervals.addRange(vMin, vMax);
+                }
+                for (let { min, max } of segQuadIndUpdated)
+                    quadIntervals.addRange(min, max);
+                triIntervals.finishInterval();
+                quadIntervals.finishInterval();
+                vertIntervals.finishInterval();
+                for (let { min, max } of triIntervals.intervals)
+                    res.renderer.renderer.stdPool.updateMeshTriangles(meshHandle, mesh, min, max - min + 1);
+                for (let { min, max } of quadIntervals.intervals)
+                    res.renderer.renderer.stdPool.updateMeshQuads(meshHandle, mesh, min, max - min + 1);
+                for (let { min, max } of vertIntervals.intervals)
+                    res.renderer.renderer.stdPool.updateMeshVertices(meshHandle, mesh, min, max - min + 1);
             }
         }
     }, "woodHealth");
@@ -338,6 +397,11 @@ function removeSplinterEnd(splinterIdx, wood) {
 }
 function addSplinterEnd(seg, wood, top) {
     assert(wood.splinterState, "!wood.splinterState");
+    const sIdx = wood.splinterState.splinterIdxPool.next();
+    if (sIdx === undefined) {
+        // console.warn(`splinterIdxPool failed?`);
+        return undefined;
+    }
     const W = seg.width;
     const D = seg.depth;
     const pos = vec3.copy(tempVec3(), seg.midLine.ray.org);
@@ -360,7 +424,7 @@ function addSplinterEnd(seg, wood, top) {
         // TODO(@darzu): HACK. We're "snapping" the splinter loop and segment loops
         //    together via distance; we should be able to do this in a more analytic way
         const snapDistSqr = Math.pow(0.2 * 0.5, 2);
-        const loop = (top ? seg.vertNextLoopIdxs : seg.vertLastLoopIdxs);
+        const loop = top ? seg.vertNextLoopIdxs : seg.vertLastLoopIdxs;
         for (let vi = b.mesh.pos.length - 4; vi < b.mesh.pos.length; vi++) {
             const p = b.mesh.pos[vi];
             for (let lp of loop.map((vi2) => wood.mesh.pos[vi2])) {
@@ -381,7 +445,6 @@ function addSplinterEnd(seg, wood, top) {
     // TODO(@darzu): don't alloc all this mesh stuff!!
     const splinterMesh = normalizeMesh(_tempSplinterMesh);
     // copy mesh into main mesh
-    const sIdx = wood.splinterState.nextSplinterIdx;
     const vertIdx = wood.splinterState.vertOffset + sIdx * _vertsPerSplinter;
     const triIdx = wood.splinterState.triOffset + sIdx * _trisPerSplinter;
     const quadIdx = wood.splinterState.quadOffset + sIdx * _quadsPerSplinter;
@@ -402,15 +465,7 @@ function addSplinterEnd(seg, wood, top) {
         splinterMesh.quad[i][3] += vertIdx;
         vec4.copy(wood.mesh.quad[quadIdx + i], splinterMesh.quad[i]);
     }
-    // advance the pool prt
-    wood.splinterState.nextSplinterIdx += 1;
-    if (wood.splinterState.nextSplinterIdx >= wood.splinterState.maxNumSplinters) {
-        wood.splinterState.nextSplinterIdx = 0;
-        wood.splinterState.generation++;
-        // console.log(`splinter gen: ${wood.splinterState.generation}`);
-    }
     return sIdx;
-    // return splinter;
 }
 function createSplinterEnd(seg, boardMesh, top, W, D) {
     const pos = vec3.copy(tempVec3(), seg.midLine.ray.org);
@@ -432,7 +487,7 @@ function createSplinterEnd(seg, boardMesh, top, W, D) {
         // TODO(@darzu): HACK. We're "snapping" the splinter loop and segment loops
         //    together via distance; we should be able to do this in a more analytic way
         const snapDistSqr = Math.pow(0.2 * 0.5, 2);
-        const loop = (top ? seg.vertNextLoopIdxs : seg.vertLastLoopIdxs);
+        const loop = top ? seg.vertNextLoopIdxs : seg.vertLastLoopIdxs;
         for (let vi = b.mesh.pos.length - 4; vi < b.mesh.pos.length; vi++) {
             const p = b.mesh.pos[vi];
             for (let lp of loop.map((vi2) => boardMesh.pos[vi2])) {
@@ -471,6 +526,21 @@ export function createEmptyMesh(dbgName) {
         colors: [],
     };
     return mesh;
+}
+function setSideQuadIdxs(loop1Vi, loop2Vi, q0, q1, q2, q3) {
+    // for provoking, we use loop1:2,3 and loop2:0,1
+    vec4.set(q0, loop2Vi + 3, loop2Vi + 2, loop1Vi + 2, loop1Vi + 3);
+    vec4.set(q1, loop2Vi + 2, loop2Vi + 1, loop1Vi + 1, loop1Vi + 2);
+    vec4.set(q2, loop1Vi + 1, loop2Vi + 1, loop2Vi + 0, loop1Vi + 0);
+    vec4.set(q3, loop1Vi + 0, loop2Vi + 0, loop2Vi + 3, loop1Vi + 3);
+}
+function setEndQuadIdxs(loopVi, q, facingDown) {
+    // for provoking, we use loop 0 or 3
+    // prettier-ignore
+    if (facingDown)
+        vec4.set(q, loopVi + 3, loopVi + 2, loopVi + 1, loopVi + 0);
+    else
+        vec4.set(q, loopVi + 0, loopVi + 1, loopVi + 2, loopVi + 3);
 }
 export function createTimberBuilder(mesh) {
     // TODO(@darzu): have a system for building wood?
@@ -533,7 +603,7 @@ export function createTimberBuilder(mesh) {
                 vec2.cross(cross_last_this, [lastX, lastY], [x, y]);
                 maxLoop--;
             }
-            if (cross_last_this[2] > 0)
+            if (VERBOSE_LOG && cross_last_this[2] > 0)
                 console.warn(`non-manifold!`);
             // +D side
             const vtj = vec3.fromValues(x, y, d);
@@ -560,31 +630,27 @@ export function createTimberBuilder(mesh) {
         // D to -D quad
         mesh.quad.push([v_blast, v_tlast, v_tbr, v_bbr]);
     }
+    // NOTE: for provoking vertices,
+    //  indexes 0, 1 of a loop are for stuff behind (end cap, previous sides)
+    //  indexes 2, 3 of a loop are for stuff ahead (next sides, end cap)
     function addSideQuads() {
-        const loop1Idx = mesh.pos.length - 1;
-        const loop2Idx = mesh.pos.length - 1 - 4;
-        // TODO(@darzu): handle rotation and provoking
-        for (let i = 0; i > -4; i--) {
-            const i2 = (i - 1) % 4;
-            // console.log(`i: ${i}, i2: ${i2}`);
-            mesh.quad.push([
-                loop2Idx + i,
-                loop1Idx + i,
-                loop1Idx + i2,
-                loop2Idx + i2,
-            ]);
-        }
+        const loop2Idx = mesh.pos.length - 4;
+        const loop1Idx = mesh.pos.length - 4 - 4;
+        const q0 = vec4.create();
+        const q1 = vec4.create();
+        const q2 = vec4.create();
+        const q3 = vec4.create();
+        setSideQuadIdxs(loop1Idx, loop2Idx, q0, q1, q2, q3);
+        mesh.quad.push(q0, q1, q2, q3);
     }
     function addEndQuad(facingDown) {
-        // TODO(@darzu): take a "flipped" param
-        // TODO(@darzu): handle provoking verts
-        const lastIdx = mesh.pos.length - 1;
-        const q = facingDown
-            ? [lastIdx, lastIdx - 1, lastIdx - 2, lastIdx - 3]
-            : [lastIdx - 3, lastIdx - 2, lastIdx - 1, lastIdx];
+        const lastLoopIdx = mesh.pos.length - 4;
+        const q = vec4.create();
+        setEndQuadIdxs(lastLoopIdx, q, facingDown);
         mesh.quad.push(q);
     }
     function addLoopVerts() {
+        // TODO(@darzu): ensure this agrees with the width/depth calculation in addBoard
         const v0 = vec3.fromValues(b.width, 0, b.depth);
         const v1 = vec3.fromValues(b.width, 0, -b.depth);
         const v2 = vec3.fromValues(-b.width, 0, -b.depth);
@@ -594,14 +660,6 @@ export function createTimberBuilder(mesh) {
         vec3.transformMat4(v2, v2, cursor);
         vec3.transformMat4(v3, v3, cursor);
         mesh.pos.push(v0, v1, v2, v3);
-    }
-}
-function hideSegment(seg, m) {
-    // TODO(@darzu): how to unhide?
-    // TODO(@darzu): probably a more efficient way to do this..
-    for (let qi of [...seg.quadSideIdxs, ...seg.quadEndIdxs]) {
-        const q = m.quad[qi];
-        vec4.set(q, 0, 0, 0, 0);
     }
 }
 // v24, t16, q8
@@ -625,11 +683,11 @@ export function reserveSplinterSpace(wood, maxSplinters) {
     });
     wood.splinterState = {
         maxNumSplinters: maxSplinters,
-        nextSplinterIdx: 0,
+        splinterIdxPool: createIdxPool(maxSplinters),
         vertOffset,
         quadOffset,
         triOffset,
-        generation: 1,
+        // generation: 1,
     };
     // console.log(meshStats(wood.mesh));
 }
@@ -677,7 +735,8 @@ export function getBoardsFromMesh(m) {
     function createBoard(startQi) {
         const boardVis = new Set();
         const boardQis = new Set();
-        const startLoop = m.quad[startQi];
+        const startLoop = vec4.clone(m.quad[startQi]);
+        startLoop.sort((a, b) => a - b); // TODO(@darzu): HACK?
         // build the board
         const allSegments = addBoardSegment(startLoop, true);
         if (allSegments) {
@@ -723,6 +782,7 @@ export function getBoardsFromMesh(m) {
                 return undefined;
             }
             const nextLoop = nextLoop_;
+            nextLoop.sort((a, b) => a - b); // TODO(@darzu): HACK?
             // add next loop verts to segment
             nextLoop.forEach((vi) => segVis.add(vi));
             // find all quads for segment
@@ -733,6 +793,7 @@ export function getBoardsFromMesh(m) {
                 n.every((vi) => segVis.has(vi))
                 ? [...p, ni]
                 : p, []);
+            segQis.sort((a, b) => a - b); // TODO(@darzu): HACK?
             // TODO(@darzu): in the case of 6, we might have a single-segment
             //    board and we need to allow for that
             // do we still have a valid board?
@@ -748,24 +809,25 @@ export function getBoardsFromMesh(m) {
             segVis.forEach((vi) => boardVis.add(vi));
             // create common segment data
             const vertIdxs = [...segVis.values()];
-            const aabb = getAABBFromPositions(vertIdxs.map((vi) => m.pos[vi]));
+            const aabb = getAABBFromPositions(createAABB(), vertIdxs.map((vi) => m.pos[vi]));
             const lastMid = centroid([...lastLoop].map((vi) => m.pos[vi]));
             const nextMid = centroid([...nextLoop].map((vi) => m.pos[vi]));
             const mid = createLine(lastMid, nextMid);
-            const areaNorms = segQis.map((qi) => {
-                const ps = m.quad[qi].map((vi) => m.pos[vi]);
-                // NOTE: assumes segments are parallelograms
-                const ab = vec3.subtract(tempVec3(), ps[1], ps[0]);
-                const ac = vec3.subtract(tempVec3(), ps[3], ps[0]);
-                const areaNorm = vec3.cross(vec3.create(), ab, ac);
-                // console.log(`vec3.len(areaNorm): ${vec3.len(areaNorm)}`);
-                return areaNorm;
-            });
+            const areaNorms = segQis.map(getQiAreaNorm);
             const len1 = vec3.dist(m.pos[lastLoop[1]], m.pos[lastLoop[0]]);
             const len2 = vec3.dist(m.pos[lastLoop[3]], m.pos[lastLoop[0]]);
             const width = Math.max(len1, len2) * 0.5;
             const depth = Math.min(len1, len2) * 0.5;
             let seg;
+            function getQiAreaNorm(qi) {
+                // TODO(@darzu): i hate doing this vec4->number[] conversion just to get map.. wth
+                const ps = [...m.quad[qi]].map((vi) => m.pos[vi]);
+                // NOTE: assumes segments are parallelograms
+                const ab = vec3.subtract(tempVec3(), ps[1], ps[0]);
+                const ac = vec3.subtract(tempVec3(), ps[3], ps[0]);
+                const areaNorm = vec3.cross(vec3.create(), ab, ac);
+                return areaNorm;
+            }
             // are we at an end of the board?
             if (segQis.length === 5) {
                 // get the end-cap
@@ -782,7 +844,8 @@ export function getBoardsFromMesh(m) {
                         vertLastLoopIdxs: lastLoop,
                         vertNextLoopIdxs: nextLoop,
                         quadSideIdxs: sideQuads,
-                        quadEndIdxs: [endQuad],
+                        quadBackIdx: isFirstLoop ? endQuad : undefined,
+                        quadFrontIdx: !isFirstLoop ? endQuad : undefined,
                     };
                     if (isFirstLoop) {
                         // no-op, we'll continue below
@@ -810,7 +873,6 @@ export function getBoardsFromMesh(m) {
                     vertLastLoopIdxs: lastLoop,
                     vertNextLoopIdxs: nextLoop,
                     quadSideIdxs: segQis,
-                    quadEndIdxs: [],
                 };
             }
             // continue
@@ -822,8 +884,10 @@ export function getBoardsFromMesh(m) {
                 return [seg, ...nextSegs];
         }
     }
+    const qEndCanidates = [...qIsMaybeEnd.values()];
+    qEndCanidates.sort((a, b) => a - b);
     const boards = [];
-    for (let qi of qIsMaybeEnd) {
+    for (let qi of qEndCanidates) {
         if (!structureQis.has(qi)) {
             const b = createBoard(qi);
             if (b)
@@ -854,6 +918,51 @@ export function getBoardsFromMesh(m) {
     };
     return woodenState;
 }
+// TODO(@darzu): share code with wood repair?
+export function resetWoodState(w) {
+    w.boards.forEach((b) => {
+        b.segments.forEach((s) => {
+            // TODO(@darzu): extract for repair
+            // TODO(@darzu): need enough info to reconstruct the mesh!
+            if (s.quadBackIdx) {
+                setEndQuadIdxs(s.vertLastLoopIdxs[0], w.mesh.quad[s.quadBackIdx], true);
+            }
+            if (s.quadFrontIdx) {
+                setEndQuadIdxs(s.vertNextLoopIdxs[0], w.mesh.quad[s.quadFrontIdx], false);
+            }
+            assertDbg(s.vertLastLoopIdxs[0] < s.vertNextLoopIdxs[0], `Loops out of order`);
+            setSideQuadIdxs(s.vertLastLoopIdxs[0], s.vertNextLoopIdxs[0], w.mesh.quad[s.quadSideIdxs[0]], w.mesh.quad[s.quadSideIdxs[1]], w.mesh.quad[s.quadSideIdxs[2]], w.mesh.quad[s.quadSideIdxs[3]]);
+        });
+    });
+    if (w.splinterState) {
+        w.splinterState.splinterIdxPool.reset();
+        for (let qi = w.splinterState.quadOffset; qi <
+            w.splinterState.quadOffset +
+                w.splinterState.maxNumSplinters * _quadsPerSplinter; qi++) {
+            vec4.zero(w.mesh.quad[qi]);
+        }
+        for (let ti = w.splinterState.triOffset; ti <
+            w.splinterState.triOffset +
+                w.splinterState.maxNumSplinters * _trisPerSplinter; ti++) {
+            vec3.zero(w.mesh.tri[ti]);
+        }
+    }
+}
+export function verifyUnsharedProvokingForWood(m, woodState) {
+    const provokingVis = new Set();
+    for (let b of woodState.boards) {
+        for (let seg of b.segments) {
+            for (let qi of [seg.quadBackIdx, seg.quadFrontIdx, ...seg.quadSideIdxs]) {
+                if (!qi)
+                    continue;
+                const pVi = m.quad[qi][0];
+                assert(!provokingVis.has(pVi), `Shared provoking vert found in quad ${qi} (vi: ${pVi}) for ${m.dbgName}`);
+                provokingVis.add(pVi);
+            }
+        }
+    }
+    m.usesProvoking = true;
+}
 export function unshareProvokingForWood(m, woodState) {
     // TODO(@darzu): verify this actually works. We should pre-split the mesh
     //  into islands (which will speed up getBoardsFromMesh by a lot), and then
@@ -864,7 +973,9 @@ export function unshareProvokingForWood(m, woodState) {
         // for (let b of [woodState.boards[60]]) {
         // first, do ends
         for (let seg of b.segments) {
-            for (let qi of seg.quadEndIdxs) {
+            for (let qi of [seg.quadBackIdx, seg.quadFrontIdx]) {
+                if (!qi)
+                    continue;
                 const done = unshareProvokingForBoardQuad(m.quad[qi], qi);
                 if (!done)
                     console.error(`invalid board ${bIdx}! End cap can't unshare`);
@@ -950,3 +1061,12 @@ export function createWoodHealth(w) {
         }),
     };
 }
+export function resetWoodHealth(wh) {
+    wh.boards.forEach((b) => b.forEach((s) => {
+        s.health = 1.0;
+        s.broken = false;
+        s.splinterTopIdx = undefined;
+        s.splinterBotIdx = undefined;
+    }));
+}
+//# sourceMappingURL=wood.js.map

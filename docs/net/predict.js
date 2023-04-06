@@ -23,3 +23,4 @@ export function registerPredictSystem(em) {
         }
     }, "predict");
 }
+//# sourceMappingURL=predict.js.map

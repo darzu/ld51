@@ -1,7 +1,7 @@
 import { vec2, vec3, vec4 } from "../gl-matrix.js";
 import { clamp } from "../math.js";
 import { tempVec2, tempVec3, tempVec4 } from "../temp-pool.js";
-import { assert } from "../test.js";
+import { assert } from "../util.js";
 import { never } from "../util.js";
 // TODO(@darzu): we want a whole CPU-side texture library including
 //  sampling, loading, comparison, derivatives, etc.
@@ -132,3 +132,4 @@ export function createTextureReader(data, size, outArity, format) {
         }
     }
 }
+//# sourceMappingURL=cpu-texture.js.map

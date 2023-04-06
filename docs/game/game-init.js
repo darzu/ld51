@@ -13,7 +13,7 @@ import { registerShipSystems } from "./player-ship.js";
 import { registerBuildBulletsSystem, registerBulletUpdate } from "./bullet.js";
 import { registerInitCanvasSystem } from "../canvas.js";
 import { registerConstructRenderablesSystem, registerRenderer, registerRenderInitSystem, registerUpdateRendererWorldFrames, registerUpdateSmoothedWorldFrames, RendererDef, } from "../render/renderer-ecs.js";
-import { registerDeleteEntitiesSystem } from "../delete.js";
+import { registerDeadEntitiesSystem, registerDeleteEntitiesSystem, } from "../delete.js";
 import { registerCannonSystems } from "./cannon.js";
 import { registerInteractionSystem } from "./interact.js";
 import { registerModeler } from "./modeler.js";
@@ -23,7 +23,7 @@ import { registerCursorSystems } from "./cursor.js";
 import { registerPhysicsSystems } from "../physics/phys.js";
 import { registerNoodleSystem } from "./noodles.js";
 import { registerUpdateLifetimes } from "./lifetime.js";
-import { registerMusicSystems } from "../music.js";
+import { registerMusicSystems } from "../audio.js";
 import { registerNetDebugSystem } from "../net/net-debug.js";
 import { callInitFns } from "../init.js";
 import { registerGrappleDbgSystems } from "./grapple.js";
@@ -70,6 +70,7 @@ export function registerCommonSystems(em) {
     registerSendOutboxes(em);
     registerEventSystems(em);
     registerDeleteEntitiesSystem(em);
+    registerDeadEntitiesSystem(em);
     registerMotionSmoothingSystems(em);
     registerUpdateSmoothedWorldFrames(em);
     registerUpdateRendererWorldFrames(em);
@@ -81,7 +82,6 @@ export function registerCommonSystems(em) {
 }
 function registerRenderViewController(em) {
     em.registerSystem([], [InputsDef, RendererDef, CameraDef], (_, { inputs, renderer, camera }) => {
-        var _a;
         // check render mode
         if (inputs.keyClicks["1"]) {
             // both lines and tris
@@ -103,7 +103,7 @@ function registerRenderViewController(em) {
         // check camera mode
         if (inputs.keyClicks["4"]) {
             const localPlayer = em.getResource(LocalPlayerDef);
-            const p = em.findEntity((_a = localPlayer === null || localPlayer === void 0 ? void 0 : localPlayer.playerId) !== null && _a !== void 0 ? _a : -1, [CameraFollowDef]);
+            const p = em.findEntity(localPlayer?.playerId ?? -1, [CameraFollowDef]);
             if (p) {
                 const overShoulder = p.cameraFollow.positionOffset[0] !== 0;
                 if (overShoulder)
@@ -114,3 +114,4 @@ function registerRenderViewController(em) {
         }
     }, "renderView");
 }
+//# sourceMappingURL=game-init.js.map

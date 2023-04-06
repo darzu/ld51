@@ -1,6 +1,6 @@
 import { EM } from "./entity-manager.js";
 import { vec3 } from "./gl-matrix.js";
-export const ColorDef = EM.defineComponent("color", (c) => c !== null && c !== void 0 ? c : vec3.create());
+export const ColorDef = EM.defineComponent("color", (c) => c ?? vec3.create());
 EM.registerSerializerPair(ColorDef, (o, writer) => {
     writer.writeVec3(o);
 }, (o, reader) => {
@@ -24,3 +24,4 @@ export function clearTint(tints, name) {
         vec3.set(current, 0, 0, 0);
     }
 }
+//# sourceMappingURL=color-ecs.js.map

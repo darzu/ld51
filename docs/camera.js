@@ -123,3 +123,4 @@ export function registerCameraSystems(em) {
         cameraView.viewProjMat = viewProj;
     }, "updateCameraView");
 }
+//# sourceMappingURL=camera.js.map

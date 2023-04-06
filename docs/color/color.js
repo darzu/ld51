@@ -4,7 +4,7 @@
 //  https://www.w3.org/TR/2008/REC-WCAG20-20081211/#contrast-ratiodef
 //  https://en.wikipedia.org/wiki/Color_difference
 import { clamp } from "../math.js";
-import { assert } from "../test.js";
+import { assert } from "../util.js";
 import { never, range } from "../util.js";
 import { FLRGBToFRGB, XYZD65ToFLRGB, FRGBToFLRGB, FLRGBToXYZD65, deltaE2000, 
 // TODO(@darzu): these "as" aliases aren't needed.
@@ -429,3 +429,4 @@ export function makeRainbow(numColors) {
     // );
     return rainbow;
 }
+//# sourceMappingURL=color.js.map

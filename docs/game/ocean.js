@@ -16,9 +16,9 @@ import { AssetsDef } from "./assets.js";
 export const OceanDef = EM.defineComponent("ocean", (o) => {
     return o;
 });
-export const UVPosDef = EM.defineComponent("uvPos", (uv) => uv !== null && uv !== void 0 ? uv : vec2.create());
+export const UVPosDef = EM.defineComponent("uvPos", (uv) => uv ?? vec2.create());
 EM.registerSerializerPair(UVPosDef, (o, buf) => buf.writeVec2(o), (o, buf) => buf.readVec2(o));
-export const UVDirDef = EM.defineComponent("uvDir", (dir) => dir !== null && dir !== void 0 ? dir : vec2.fromValues(0, 1));
+export const UVDirDef = EM.defineComponent("uvDir", (dir) => dir ?? vec2.fromValues(0, 1));
 EM.registerSerializerPair(UVDirDef, (o, buf) => buf.writeVec2(o), (o, buf) => buf.readVec2(o));
 // const BouyDef = EM.defineComponent(
 //   "bouy",
@@ -29,6 +29,7 @@ EM.registerSerializerPair(UVDirDef, (o, buf) => buf.writeVec2(o), (o, buf) => bu
 // );
 export const oceanJfa = createJfaPipelines(uvMaskTex, "exterior");
 export async function initOcean() {
+    console.log("initOcean!");
     const res = await EM.whenResources(RendererDef, AssetsDef, TimeDef);
     const ocean = EM.newEntity();
     let oceanEntId = ocean.id; // hacky?
@@ -41,7 +42,7 @@ export async function initOcean() {
     let ocean2 = await EM.whenEntityHas(ocean, RenderableDef, RenderDataOceanDef);
     // TODO(@darzu):
     const preOceanGPU = performance.now();
-    res.renderer.renderer.updateOceanUniform(ocean2.renderable.meshHandle, ocean2.renderDataOcean);
+    res.renderer.renderer.oceanPool.updateUniform(ocean2.renderable.meshHandle, ocean2.renderDataOcean);
     res.renderer.renderer.submitPipelines([ocean2.renderable.meshHandle], 
     // [unwrapPipeline, unwrapPipeline2]
     [unwrapPipeline, unwrapPipeline2, ...oceanJfa.allPipes()]);
@@ -250,3 +251,4 @@ function createGerstnerWave(Q, A, D, w, phi) {
 // [ ] 3D->3D voronoi texture
 // [ ] 3D->2D voronoi seeds lookup texture
 // [ ] 3D normals texture ?
+//# sourceMappingURL=ocean.js.map

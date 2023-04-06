@@ -3,7 +3,7 @@ import { mat4, quat, vec3 } from "../gl-matrix.js";
 import { importObj, isParseError } from "../import_obj.js";
 import { cloneMesh, getAABBFromMesh, getCenterFromAABB, getHalfsizeFromAABB, mapMeshPositions, mergeMeshes, normalizeMesh, scaleMesh, scaleMesh3, transformMesh, validateMesh, } from "../render/mesh.js";
 import { RendererDef } from "../render/renderer-ecs.js";
-import { assert } from "../test.js";
+import { assert } from "../util.js";
 import { objMap } from "../util.js";
 import { getText } from "../webget.js";
 import { farthestPointInDir, uintToVec3unorm, vec3Reverse, vec4Reverse, } from "../utils-3d.js";
@@ -16,8 +16,8 @@ export const DARK_GRAY = vec3.fromValues(0.02, 0.02, 0.02);
 export const LIGHT_GRAY = vec3.fromValues(0.2, 0.2, 0.2);
 export const DARK_BLUE = vec3.fromValues(0.03, 0.03, 0.2);
 export const LIGHT_BLUE = vec3.fromValues(0.05, 0.05, 0.2);
-const DEFAULT_ASSET_PATH = "/assets/";
-const BACKUP_ASSET_PATH = "https://sprig.land/ld51/assets/";
+const DEFAULT_ASSET_PATH = "assets/";
+const BACKUP_ASSET_PATH = "https://sprig.land/assets/";
 const RemoteMeshes = {
     ship: "barge.sprig.obj",
     // ship_fangs: "enemy_ship_fangs.sprig.obj",
@@ -311,8 +311,8 @@ export const CUBE_MESH = {
     ],
 };
 export function mkTimberSplinterEnd(loopCursor, splintersCursor) {
-    loopCursor = loopCursor !== null && loopCursor !== void 0 ? loopCursor : mat4.create();
-    splintersCursor = splintersCursor !== null && splintersCursor !== void 0 ? splintersCursor : mat4.create();
+    loopCursor = loopCursor ?? mat4.create();
+    splintersCursor = splintersCursor ?? mat4.create();
     const b = createTimberBuilder(createEmptyMesh("splinterEnd"));
     b.width = 0.5;
     b.depth = 0.2;
@@ -727,6 +727,7 @@ async function loadTxtInternal(relPath) {
         txt = await getText(DEFAULT_ASSET_PATH + relPath);
     }
     catch (_) {
+        console.warn(`Asset path ${DEFAULT_ASSET_PATH + relPath} failed; trying ${BACKUP_ASSET_PATH + relPath}`);
         txt = await getText(BACKUP_ASSET_PATH + relPath);
     }
     return txt;
@@ -799,7 +800,7 @@ export function gameMeshFromMesh(rawMesh, renderer) {
     const aabb = getAABBFromMesh(mesh);
     const center = getCenterFromAABB(aabb);
     const halfsize = getHalfsizeFromAABB(aabb);
-    const proto = renderer.addMesh(mesh);
+    const proto = renderer.stdPool.addMesh(mesh);
     const uniqueVerts = getUniqueVerts(mesh);
     const support = (d) => farthestPointInDir(uniqueVerts, d);
     const aabbCollider = (solid) => ({
@@ -831,3 +832,4 @@ function getUniqueVerts(mesh) {
     }
     return res;
 }
+//# sourceMappingURL=assets.js.map

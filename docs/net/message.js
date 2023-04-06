@@ -39,7 +39,6 @@ export function serializeEntity(em, ent, message, type, components) {
     }
 }
 export function deserializeEntity(em, updateSeq, message, dt) {
-    var _a, _b;
     let type = message.readUint8();
     let id = message.readUint32();
     let authorityPid = message.readUint8();
@@ -57,7 +56,7 @@ export function deserializeEntity(em, updateSeq, message, dt) {
         authority.seq = authoritySeq;
     }
     else {
-        authority = (_a = em.findEntity(id, [AuthorityDef])) === null || _a === void 0 ? void 0 : _a.authority;
+        authority = em.findEntity(id, [AuthorityDef])?.authority;
     }
     // We want to set message.dummy if either:
     //
@@ -77,7 +76,7 @@ export function deserializeEntity(em, updateSeq, message, dt) {
         em.deserialize(id, componentId, message);
     }
     if (!message.dummy) {
-        let predict = (_b = em.findEntity(id, [PredictDef])) === null || _b === void 0 ? void 0 : _b.predict;
+        let predict = em.findEntity(id, [PredictDef])?.predict;
         if (predict) {
             predict.dt += dt;
         }
@@ -90,3 +89,4 @@ export function Ack(seq) {
     message.writeUint32(seq);
     return message;
 }
+//# sourceMappingURL=message.js.map

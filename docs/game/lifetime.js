@@ -1,9 +1,9 @@
-import { DeletedDef } from "../delete.js";
+import { DeadDef } from "../delete.js";
 import { EM } from "../entity-manager.js";
 import { AuthorityDef, MeDef } from "../net/components.js";
 import { TimeDef } from "../time.js";
-export const LifetimeDef = EM.defineComponent("lifetime", (ms) => {
-    return { ms };
+export const LifetimeDef = EM.defineComponent("lifetime", (ms = 1000) => {
+    return { startMs: ms, ms: ms };
 });
 export function registerUpdateLifetimes(em) {
     em.registerSystem([LifetimeDef], [TimeDef, MeDef], (objs, res) => {
@@ -13,8 +13,12 @@ export function registerUpdateLifetimes(em) {
                     continue;
             o.lifetime.ms -= res.time.dt;
             if (o.lifetime.ms < 0) {
-                em.addComponent(o.id, DeletedDef);
+                // TODO(@darzu): dead or deleted?
+                em.addComponent(o.id, DeadDef);
+                // TODO(@darzu): note needed?
+                // em.addComponent(o.id, DeletedDef);
             }
         }
     }, "updateLifetimes");
 }
+//# sourceMappingURL=lifetime.js.map

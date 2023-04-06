@@ -17,10 +17,10 @@ export const STAR2_COLOR = vec3.fromValues(0.3, 0.8, 0.6);
 export const { DarkStarPropsDef, DarkStarLocalDef, createDarkStarNow } = defineNetEntityHelper(EM, {
     name: "darkStar",
     defaultProps: (pos, color, orbiting, orbitalAxis) => ({
-        pos: pos !== null && pos !== void 0 ? pos : vec3.create(),
-        color: color !== null && color !== void 0 ? color : vec3.create(),
-        orbiting: orbiting !== null && orbiting !== void 0 ? orbiting : vec3.create(),
-        orbitalAxis: orbitalAxis !== null && orbitalAxis !== void 0 ? orbitalAxis : vec3.fromValues(1, 0, 0),
+        pos: pos ?? vec3.create(),
+        color: color ?? vec3.create(),
+        orbiting: orbiting ?? vec3.create(),
+        orbitalAxis: orbitalAxis ?? vec3.fromValues(1, 0, 0),
     }),
     serializeProps: (o, buf) => {
         buf.writeVec3(o.pos);
@@ -95,3 +95,4 @@ onInit((em) => {
         }
     }, "darkStarOrbit");
 });
+//# sourceMappingURL=darkstar.js.map

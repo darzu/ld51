@@ -32,7 +32,7 @@ export async function drawLine(start, end, color) {
         m.pos = pos;
         m.colors = [color, color];
         const res = await EM.whenResources(RendererDef);
-        res.renderer.renderer.updateMeshVertices(e.renderable.meshHandle, m);
+        res.renderer.renderer.stdPool.updateMeshVertices(e.renderable.meshHandle, m);
         return e;
     }
     else {
@@ -84,5 +84,6 @@ export async function randomizeMeshColors(e) {
     const mesh = meshH.readonlyMesh;
     for (let c of mesh.colors)
         vec3.set(c, Math.random(), Math.random(), Math.random());
-    res.renderer.renderer.updateMeshVertices(meshH, mesh);
+    res.renderer.renderer.stdPool.updateMeshVertices(meshH, mesh);
 }
+//# sourceMappingURL=utils-game.js.map

@@ -3,7 +3,7 @@ export const SyncDef = EM.defineComponent("sync", (dynamic) => ({
     priorityIncrementFull: 1000,
     priorityIncrementDynamic: 10,
     fullComponents: [],
-    dynamicComponents: dynamic !== null && dynamic !== void 0 ? dynamic : [],
+    dynamicComponents: dynamic ?? [],
 }));
 export const PeerDef = EM.defineComponent("peer", () => ({
     address: "",
@@ -65,3 +65,4 @@ export const PredictDef = EM.defineComponent("predict", () => ({
 }));
 // Marker component for entities that have just been updated by the sync system
 export const RemoteUpdatesDef = EM.defineComponent("remoteUpdates", () => true);
+//# sourceMappingURL=components.js.map

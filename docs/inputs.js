@@ -29,7 +29,6 @@ function createInputsReader(canvas) {
     const keyDowns = {};
     const accumulated_keyClicks = {};
     window.addEventListener("keydown", (ev) => {
-        var _a;
         const k = ev.key.toLowerCase();
         if (DEBUG_INPUTS) {
             if (!_seenKeyCodes.has(k)) {
@@ -38,7 +37,7 @@ function createInputsReader(canvas) {
             }
         }
         if (!keyDowns[k])
-            accumulated_keyClicks[k] = ((_a = accumulated_keyClicks[k]) !== null && _a !== void 0 ? _a : 0) + 1;
+            accumulated_keyClicks[k] = (accumulated_keyClicks[k] ?? 0) + 1;
         keyDowns[k] = true;
     }, false);
     window.addEventListener("keyup", (ev) => {
@@ -127,3 +126,4 @@ function createInputsReader(canvas) {
     }
     return takeInputs;
 }
+//# sourceMappingURL=inputs.js.map

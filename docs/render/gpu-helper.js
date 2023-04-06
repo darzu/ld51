@@ -1,4 +1,4 @@
-import { assert } from "../test.js";
+import { assert } from "../util.js";
 import { isFunction, never } from "../util.js";
 import { CY, linearSamplerPtr, } from "./gpu-registry.js";
 import { createCyStruct, texTypeIsDepth, TexTypeToElementArity, texTypeToSampleType, TexTypeToWGSLElement, } from "./gpu-struct.js";
@@ -24,7 +24,6 @@ export function createRenderTextureToQuad(name, inTex, outTex, minX = -1, maxX =
 //   with this dictionary being statically typed based on the globals
 //   defined in the CyPtr. Kind of like the ECS systems.
 fragSnippet, libs) {
-    var _a;
     const quad = CY.createSingleton(`${name}Quad`, {
         struct: QuadStruct,
         init: () => ({
@@ -34,7 +33,7 @@ fragSnippet, libs) {
             maxY,
         }),
     });
-    const inTexIsUnfilterable = (_a = texTypeToSampleType[inTex.format]) === null || _a === void 0 ? void 0 : _a.every((f) => f.startsWith("unfilterable"));
+    const inTexIsUnfilterable = texTypeToSampleType[inTex.format]?.every((f) => f.startsWith("unfilterable"));
     // TODO(@darzu): turn on-off sampling?
     const doSample = !inTexIsUnfilterable && sample;
     outTex.format;
@@ -80,7 +79,7 @@ fragSnippet, libs) {
 
     @fragment
     fn frag_main(@location(0) uv : vec2<f32>) -> @location(0) ${returnWgslType} {
-      let dimsI : vec2<i32> = textureDimensions(inTex);
+      let dimsI : vec2<i32> = vec2<i32>(textureDimensions(inTex));
       let dimsF = vec2<f32>(dimsI);
       let xy = vec2<i32>(uv * dimsF);
       ${
@@ -115,3 +114,4 @@ fragSnippet, libs) {
     });
     return { pipeline, quad };
 }
+//# sourceMappingURL=gpu-helper.js.map

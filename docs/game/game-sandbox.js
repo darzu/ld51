@@ -1,4 +1,4 @@
-import { EASE_INQUAD } from "../animate-to.js";
+import { EASE_INQUAD } from "../util-ease.js";
 import { CameraFollowDef, setCameraFollowPosition, CameraDef, } from "../camera.js";
 import { ColorDef } from "../color-ecs.js";
 import { DeletedDef } from "../delete.js";
@@ -22,7 +22,7 @@ import { boidRender, boidComp0, boidComp1, } from "../render/pipelines/xp-boids-
 import { cmpClothPipelinePtr0, cmpClothPipelinePtr1, } from "../render/pipelines/xp-cloth-pipeline.js";
 import { compRopePipelinePtr, } from "../render/pipelines/xp-ropestick-pipeline.js";
 import { tempVec3 } from "../temp-pool.js";
-import { assert } from "../test.js";
+import { assert } from "../util.js";
 import { TimeDef } from "../time.js";
 import { farthestPointInDir } from "../utils-3d.js";
 import { createLine } from "../utils-game.js";
@@ -361,7 +361,7 @@ export async function initClothSandbox(em, hosting) {
             const m = line.renderable.meshHandle.readonlyMesh;
             vec3.copy(m.pos[0], cursorPos);
             vec3.copy(m.pos[1], clothPos);
-            res.renderer.renderer.updateMeshVertices(line.renderable.meshHandle, m);
+            res.renderer.renderer.stdPool.updateMeshVertices(line.renderable.meshHandle, m);
         }
         // scale the force
         const delta = vec3.sub(tempVec3(), clothPos, cursorPos);
@@ -465,3 +465,4 @@ export async function initReboundSandbox(em, hosting) {
         }
     }, "sandboxSpawnBoxes");
 }
+//# sourceMappingURL=game-sandbox.js.map

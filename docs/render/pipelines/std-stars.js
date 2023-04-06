@@ -61,3 +61,4 @@ export const renderStars = CY.createRenderPipeline("renderStars", {
     depthStencil: mainDepthTex,
     output: [emissionTexturePtr, outlinedTexturePtr],
 });
+//# sourceMappingURL=std-stars.js.map

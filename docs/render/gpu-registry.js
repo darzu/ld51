@@ -1,4 +1,4 @@
-import { assert } from "../test.js";
+import { assert } from "../util.js";
 export const linearSamplerPtr = {
     kind: "sampler",
     name: "linearSampler",
@@ -116,3 +116,4 @@ export function createCyRegistry() {
         },
     };
 }
+//# sourceMappingURL=gpu-registry.js.map

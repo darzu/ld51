@@ -73,6 +73,7 @@ export function checkBroadphase(objs) {
     //      100 objs: 0.1ms, 1,200 overlaps + 6,000 enclosed-bys
     if (BROAD_PHASE === "OCT") {
         // TODO(@darzu): check layer masks
+        // TODO(@darzu): PERF. Is this really created every frame?!
         const octObjs = new Map(objs.map((o) => [o.id, o.aabb])); // TODO(@darzu): necessary?
         const tree = octtree(octObjs, universeAABB);
         function octCheckOverlap(tree) {
@@ -430,11 +431,22 @@ export function getAABBCorners(aabb) {
     ];
     return points;
 }
+const tempAabbCorners = range(8).map((_) => vec3.create());
+export function getAABBCornersTemp(aabb) {
+    vec3.set(tempAabbCorners[0], aabb.max[0], aabb.max[1], aabb.max[2]);
+    vec3.set(tempAabbCorners[1], aabb.max[0], aabb.max[1], aabb.min[2]);
+    vec3.set(tempAabbCorners[2], aabb.max[0], aabb.min[1], aabb.max[2]);
+    vec3.set(tempAabbCorners[3], aabb.max[0], aabb.min[1], aabb.min[2]);
+    vec3.set(tempAabbCorners[4], aabb.min[0], aabb.max[1], aabb.max[2]);
+    vec3.set(tempAabbCorners[5], aabb.min[0], aabb.max[1], aabb.min[2]);
+    vec3.set(tempAabbCorners[6], aabb.min[0], aabb.min[1], aabb.max[2]);
+    vec3.set(tempAabbCorners[7], aabb.min[0], aabb.min[1], aabb.min[2]);
+    return tempAabbCorners;
+}
 export function transformAABB(out, t) {
-    // TODO(@darzu): highly inefficient. for one, this allocs new vecs
-    const wCorners = getAABBCorners(out).map((p) => vec3.transformMat4(p, p, t));
-    // TODO(@darzu): update localAABB too
-    copyAABB(out, getAABBFromPositions(wCorners));
+    const wCorners = getAABBCornersTemp(out);
+    wCorners.forEach((p) => vec3.transformMat4(p, p, t));
+    getAABBFromPositions(out, wCorners);
 }
 export function aabbCenter(out, a) {
     out[0] = (a.min[0] + a.max[0]) * 0.5;
@@ -460,15 +472,13 @@ export function mergeAABBs(out, a, b) {
     out.max[2] = Math.max(a.max[2], b.max[2]);
     return out;
 }
-export function getAABBFromPositions(positions) {
-    const aabb = {
-        min: vec3.fromValues(Infinity, Infinity, Infinity),
-        max: vec3.fromValues(-Infinity, -Infinity, -Infinity),
-    };
+export function getAABBFromPositions(out, positions) {
+    vec3.set(out.min, Infinity, Infinity, Infinity);
+    vec3.set(out.max, -Infinity, -Infinity, -Infinity);
     for (let pos of positions) {
-        updateAABBWithPoint(aabb, pos);
+        updateAABBWithPoint(out, pos);
     }
-    return aabb;
+    return out;
 }
 export function getLineEnd(out, line) {
     vec3.scale(out, line.ray.dir, line.len);
@@ -548,3 +558,4 @@ export function lineSphereIntersections(line, sphere) {
         return undefined;
     return hits;
 }
+//# sourceMappingURL=broadphase.js.map

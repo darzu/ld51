@@ -10,18 +10,15 @@ import { normalizeMesh, unshareProvokingVerticesWithMap, } from "../render/mesh.
 import { RenderableConstructDef, RenderableDef, } from "../render/renderer-ecs.js";
 import { RendererDef } from "../render/renderer-ecs.js";
 import { ColorDef } from "../color-ecs.js";
-export const ClothConstructDef = EM.defineComponent("clothConstruct", (c) => {
-    var _a, _b, _c, _d, _e;
-    return ({
-        location: (_a = c.location) !== null && _a !== void 0 ? _a : vec3.fromValues(0, 0, 0),
-        color: (_b = c.color) !== null && _b !== void 0 ? _b : vec3.fromValues(0, 0, 0),
-        rows: (_c = c.rows) !== null && _c !== void 0 ? _c : 2,
-        columns: (_d = c.columns) !== null && _d !== void 0 ? _d : 2,
-        distance: (_e = c.distance) !== null && _e !== void 0 ? _e : 1,
-    });
-});
+export const ClothConstructDef = EM.defineComponent("clothConstruct", (c) => ({
+    location: c.location ?? vec3.fromValues(0, 0, 0),
+    color: c.color ?? vec3.fromValues(0, 0, 0),
+    rows: c.rows ?? 2,
+    columns: c.columns ?? 2,
+    distance: c.distance ?? 1,
+}));
 export const ClothLocalDef = EM.defineComponent("clothLocal", (posMap) => ({
-    posMap: posMap !== null && posMap !== void 0 ? posMap : new Map(),
+    posMap: posMap ?? new Map(),
 }));
 EM.registerSerializerPair(ClothConstructDef, (clothConstruct, buf) => {
     buf.writeVec3(clothConstruct.location);
@@ -128,7 +125,8 @@ onInit((em) => {
                 const originalIndex = cloth.clothLocal.posMap.get(i);
                 return vec3.copy(p, cloth.springGrid.positions[originalIndex]);
             });
-            renderer.renderer.updateMeshVertices(cloth.renderable.meshHandle, m);
+            renderer.renderer.stdPool.updateMeshVertices(cloth.renderable.meshHandle, m);
         }
     }, "updateClothMesh");
 });
+//# sourceMappingURL=cloth.js.map

@@ -5,7 +5,7 @@ import { registerPhysicsClampVelocityByContact, registerPhysicsClampVelocityBySi
 import { registerUpdateLocalFromPosRotScale, registerUpdateWorldFromLocalAndParent, } from "./transform.js";
 import { aabbCenter } from "./broadphase.js";
 import { registerNarrowPhaseSystems } from "./narrowphase.js";
-import { assert } from "../test.js";
+import { assert } from "../util.js";
 import { tempVec3 } from "../temp-pool.js";
 // TODO(@darzu): PHYSICS TODO:
 // [ ] seperate rotation and motion w/ constraint checking between them
@@ -238,3 +238,4 @@ function computeReboundDataInternal(a, aLastPos, aCurrPos, b, bLastPos, bCurrPos
 //       Math.sign(b.lastPos[bDim] - b.currPos[bDim]) * bOverlapNum;
 //   return { aId: a.id, bId: b.id, aRebound, bRebound, aOverlap, bOverlap };
 // }
+//# sourceMappingURL=phys.js.map

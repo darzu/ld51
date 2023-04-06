@@ -2,7 +2,7 @@
 import { RUN_UNIT_TESTS, VERBOSE_LOG } from "./flags.js";
 import { testImporters } from "./import_obj.js";
 import { Serializer, Deserializer } from "./serialize.js";
-import { testPackUnpackI16 } from "./util.js";
+import { assert, testPackUnpackI16 } from "./util.js";
 function testBasics() {
     let s = new Serializer(100);
     s.writeUint32(42);
@@ -16,11 +16,6 @@ function testBasics() {
         throw "test failure";
     if (d.readUint16() !== 45)
         throw "test failure";
-}
-export function assert(cond, msg) {
-    // https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-7.html#assertion-functions
-    if (!cond)
-        throw new Error(msg !== null && msg !== void 0 ? msg : "Assertion failed; please add a helpful msg and yell at the lazy dev who didn't.");
 }
 export function test() {
     if (!RUN_UNIT_TESTS) {
@@ -37,3 +32,4 @@ export function test() {
     console.log(`<<< ENDING TESTS (${(end - start).toFixed(1)}ms)`);
     assert(end - start < 1000, `tests took longer than 1 second! shame on you.`);
 }
+//# sourceMappingURL=test.js.map

@@ -15,7 +15,7 @@ import { setSimulationAlpha } from "./render/renderer-ecs.js";
 import { never } from "./util.js";
 import { initHyperspaceGame } from "./game/game-hyperspace.js";
 import { initCubeGame } from "./game/xp-cube.js";
-import { VERBOSE_LOG } from "./flags.js";
+import { DBG_ASSERT, VERBOSE_LOG } from "./flags.js";
 import { initLD51Game, sandboxSystems } from "./game/game-ld51.js";
 export const FORCE_WEBGL = false;
 export const MAX_MESHES = 20000;
@@ -26,7 +26,9 @@ const GAME = "ld51";
 // Run simulation with a fixed timestep @ 60hz
 const TIMESTEP = 1000 / 60;
 // Don't run more than 5 simulation steps--if we do, reset accumulated time
-const MAX_SIM_LOOPS = 3;
+const MAX_SIM_LOOPS = 1;
+// TODO(@darzu): PERF ISSUES WITH LD51
+// const MAX_SIM_LOOPS = 3;
 export let gameStarted = false;
 function callFixedTimestepSystems() {
     // TODO(@darzu): calling systems still needs more massaging.
@@ -121,6 +123,7 @@ function callFixedTimestepSystems() {
     }
     EM.callSystem("ensureFillOutLocalFrame");
     EM.callSystem("ensureWorldFrame");
+    // EM.callSystem("physicsDeadStuff");
     EM.callSystem("physicsInit");
     EM.callSystem("clampVelocityByContact");
     EM.callSystem("registerPhysicsClampVelocityBySize");
@@ -175,6 +178,8 @@ function callFixedTimestepSystems() {
     EM.callSystem("retargetCamera");
     EM.callSystem("renderView");
     EM.callSystem("constructRenderables");
+    if (DBG_ASSERT)
+        EM.callSystem("deadCleanupWarning"); // SHOULD BE LAST(-ish); warns if cleanup is missing
     EM.callOneShotSystems();
     EM.loops++;
 }
@@ -220,11 +225,12 @@ async function startGame(localPeerName, host) {
     let previous_frame_time = start_of_time;
     let accumulator = 0;
     let frame = (frame_time) => {
+        // console.log(`requestAnimationFrame: ${frame_time}`);
         let before_frame = performance.now();
         accumulator += frame_time - previous_frame_time;
         let loops = 0;
         while (accumulator > TIMESTEP) {
-            if (loops > MAX_SIM_LOOPS) {
+            if (loops >= MAX_SIM_LOOPS) {
                 if (VERBOSE_LOG)
                     console.log("too many sim loops, resetting accumulator");
                 accumulator = 0;
@@ -238,7 +244,12 @@ async function startGame(localPeerName, host) {
         setSimulationAlpha(accumulator / TIMESTEP);
         EM.callSystem("updateRendererWorldFrames");
         EM.callSystem("updateCameraView");
-        EM.callSystem("stepRenderer");
+        {
+            // NOTE: these 3 must stay together in this order. See NOTE above renderListDeadHidden
+            EM.callSystem("renderListDeadHidden");
+            EM.callSystem("renderList");
+            EM.callSystem("stepRenderer");
+        }
         let jsTime = performance.now() - before_frame;
         let frameTime = frame_time - previous_frame_time;
         previous_frame_time = frame_time;
@@ -262,9 +273,8 @@ function getPeerName(queryString) {
     return peerName;
 }
 async function main() {
-    var _a;
     const queryString = Object.fromEntries(new URLSearchParams(window.location.search).entries());
-    const urlServerId = (_a = queryString["server"]) !== null && _a !== void 0 ? _a : null;
+    const urlServerId = queryString["server"] ?? null;
     // const peerName = getPeerName(queryString);
     const peerName = "myPeerName";
     let controls = document.getElementById("server-controls");
@@ -303,3 +313,4 @@ window.onload = () => {
 // for debugging
 window.dbg = dbg;
 window.EM = EM;
+//# sourceMappingURL=main.js.map

@@ -1,7 +1,7 @@
 import { DeletedDef } from "../delete.js";
 import { EM } from "../entity-manager.js";
 import { quat, vec3 } from "../gl-matrix.js";
-import { MusicDef } from "../music.js";
+import { AudioDef } from "../audio.js";
 import { AuthorityDef, HostDef, MeDef } from "../net/components.js";
 import { eventWizard } from "../net/events.js";
 import { LinearVelocityDef } from "../physics/motion.js";
@@ -26,7 +26,7 @@ export const startGame = eventWizard("start-game", () => [[PlayerDef]], () => {
 }, { legalEvent: () => EM.getResource(GameStateDef).state === GameState.LOBBY });
 export const endGame = eventWizard("end-game", () => [[PlayerShipPropsDef, PlayerShipLocalDef, PositionDef]], ([ship]) => {
     console.log("end");
-    const res = EM.getResources([MusicDef, GameStateDef, MeDef]);
+    const res = EM.getResources([AudioDef, GameStateDef, MeDef]);
     res.music.playChords([1, 2, 3, 4, 4], "minor");
     res.gameState.state = GameState.GAMEOVER;
     res.gameState.time = 0;
@@ -104,3 +104,4 @@ export function registerGameStateSystems(em) {
         }
     }, "restartTimer");
 }
+//# sourceMappingURL=gamestate.js.map

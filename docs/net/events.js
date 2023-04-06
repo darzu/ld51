@@ -5,7 +5,7 @@ import { MeDef, OutboxDef, send, HostDef, InboxDef, AuthorityDef, } from "./comp
 import { hashCode } from "../util.js";
 import { TimeDef } from "../time.js";
 import { PositionDef, RotationDef } from "../physics/transform.js";
-import { assert } from "../test.js";
+import { assert } from "../util.js";
 import { onInit } from "../init.js";
 const EVENT_TYPES = new Map();
 const EVENT_HANDLERS = new Map();
@@ -420,21 +420,21 @@ export function eventWizard(name, entities, runEvent, opts) {
         registerEventHandler(name, {
             entities: delayInit ? entities() : entities,
             eventAuthorityEntity: (es) => {
-                if (opts === null || opts === void 0 ? void 0 : opts.eventAuthorityEntity)
+                if (opts?.eventAuthorityEntity)
                     return opts.eventAuthorityEntity(es);
                 else
                     return es[0];
             },
             legalEvent: (em, es, extra) => {
-                if (opts === null || opts === void 0 ? void 0 : opts.legalEvent)
+                if (opts?.legalEvent)
                     return opts.legalEvent(es, extra);
                 return true;
             },
             runEvent: (em, es, extra) => {
                 runEvent(es, extra);
             },
-            ...((opts === null || opts === void 0 ? void 0 : opts.serializeExtra) ? { serializeExtra: opts.serializeExtra } : {}),
-            ...((opts === null || opts === void 0 ? void 0 : opts.deserializeExtra)
+            ...(opts?.serializeExtra ? { serializeExtra: opts.serializeExtra } : {}),
+            ...(opts?.deserializeExtra
                 ? { deserializeExtra: opts.deserializeExtra }
                 : {}),
         });
@@ -462,3 +462,4 @@ export function eventWizard(name, entities, runEvent, opts) {
     };
     return raiseEvent;
 }
+//# sourceMappingURL=events.js.map
